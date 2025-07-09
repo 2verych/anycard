@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography } from '@mui/material';
+import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert } from '@mui/material';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -8,8 +8,15 @@ function App() {
   const [tab, setTab] = useState(0);
   const [cards, setCards] = useState([]);
   const [file, setFile] = useState(null);
+  const [comment, setComment] = useState('');
+  const [dialogCard, setDialogCard] = useState(null);
+  const [snackOpen, setSnackOpen] = useState(false);
+  const [config, setConfig] = useState({ previewSize: 128 });
 
   useEffect(() => {
+    fetch(`${API_URL}/config`)
+      .then(res => res.json())
+      .then(setConfig);
     fetch(`${API_URL}/me`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
@@ -34,13 +41,16 @@ function App() {
     if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('comment', comment);
     fetch(`${API_URL}/upload`, {
       method: 'POST',
       credentials: 'include',
       body: formData,
     }).then(() => {
       setFile(null);
+      setComment('');
       loadCards();
+      setSnackOpen(true);
     });
   };
 
@@ -67,17 +77,44 @@ function App() {
         <Tab label="Upload" />
       </Tabs>
       <Box sx={{ p:2 }} hidden={tab!==0}>
-        {cards.map((url, i) => (
-          <Box key={i} component="img" src={`${API_URL}${url}`} alt="card" sx={{ maxWidth:'100%', mb:2 }} />
-        ))}
         {cards.length === 0 && <Typography>No cards uploaded.</Typography>}
+        <Grid container spacing={2}>
+          {cards.map((card, i) => (
+            <Grid item key={i}>
+              <Box
+                component="img"
+                src={`${API_URL}${card.preview}`}
+                alt="card"
+                sx={{ width: config.previewSize, height: config.previewSize, objectFit: 'cover', cursor: 'pointer' }}
+                onClick={() => setDialogCard(card)}
+              />
+            </Grid>
+          ))}
+        </Grid>
       </Box>
       <Box sx={{ p:2 }} hidden={tab!==1}>
         <form onSubmit={handleUpload}>
           <input type="file" accept="image/*" onChange={e=>setFile(e.target.files[0])} />
-          <Button type="submit" variant="contained" sx={{ ml:2 }}>Upload</Button>
+          <TextField label="Comment" multiline value={comment} onChange={e=>setComment(e.target.value)} sx={{ mx:2, width:'300px' }} />
+          <Button type="submit" variant="contained">Upload</Button>
         </form>
       </Box>
+      <Dialog open={!!dialogCard} onClose={() => setDialogCard(null)} fullScreen>
+        <AppBar sx={{ position: 'relative' }}>
+          <Toolbar>
+            <Typography sx={{ flexGrow:1 }} variant="h6">{dialogCard?.comment}</Typography>
+            <Button color="inherit" onClick={() => setDialogCard(null)}>Close</Button>
+          </Toolbar>
+        </AppBar>
+        <DialogContent sx={{ p:2, display:'flex', justifyContent:'center' }}>
+          {dialogCard && (
+            <Box component="img" src={`${API_URL}${dialogCard.original}`} alt="card" sx={{ maxWidth:'100%', maxHeight:'100%' }} />
+          )}
+        </DialogContent>
+      </Dialog>
+      <Snackbar open={snackOpen} autoHideDuration={3000} onClose={() => setSnackOpen(false)}>
+        <Alert severity="success" onClose={() => setSnackOpen(false)}>File uploaded</Alert>
+      </Snackbar>
     </Box>
   );
 }

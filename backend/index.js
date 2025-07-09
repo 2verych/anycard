@@ -49,12 +49,21 @@ function ensureAuthenticated(req, res, next) {
 
 app.get('/auth/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
 
-app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: '/' }),
-  (req, res) => {
-    res.redirect(process.env.FRONTEND_URL || 'http://localhost:3000');
-  }
-);
+app.get('/auth/google/callback', (req, res, next) => {
+  passport.authenticate('google', (err, user) => {
+    if (err) {
+      console.error('Google OAuth error:', err);
+      return res.redirect('/?auth=error');
+    }
+    if (!user) {
+      return res.redirect('/?auth=failed');
+    }
+    req.logIn(user, (err) => {
+      if (err) { return next(err); }
+      res.redirect(process.env.FRONTEND_URL || 'http://localhost:3000');
+    });
+  })(req, res, next);
+});
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -91,6 +100,12 @@ app.get('/me', (req, res) => {
   } else {
     res.json(null);
   }
+});
+
+// Generic error handler to prevent uncaught OAuth errors from crashing the app
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
 app.listen(PORT, () => console.log('Server running on port', PORT));

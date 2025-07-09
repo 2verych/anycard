@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel } from '@mui/material';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -32,21 +32,21 @@ function App() {
       loadGroups();
       loadCards();
     }
-  }, [user]);
+  }, [user, loadGroups, loadCards]);
 
   useEffect(() => {
     if (user) {
       loadCards();
     }
-  }, [selectedGroup]);
+  }, [selectedGroup, user, loadCards]);
 
-  const loadCards = () => {
+  const loadCards = useCallback(() => {
     fetch(`${API_URL}/cards?group=${selectedGroup}`, { credentials: 'include' })
       .then(res => res.json())
       .then(setCards);
-  };
+  }, [selectedGroup]);
 
-  const loadGroups = () => {
+  const loadGroups = useCallback(() => {
     fetch(`${API_URL}/groups`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
@@ -56,7 +56,7 @@ function App() {
         }
         setUploadGroups(ugs => ugs.filter(id => data.find(g => g.id === id)));
       });
-  };
+  }, [selectedGroup]);
 
   const handleUpload = (e) => {
     e.preventDefault();

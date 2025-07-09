@@ -29,4 +29,5 @@ Create a `.env` based on `.env.sample` to configure the API URL.
 1. Start the backend and frontend.
 2. Open the frontend URL in your browser.
 3. Login with Google and upload images of your cards.
-4. View your uploaded cards in the "Your Cards" tab.
+4. Organize cards into groups and add comments during upload.
+5. View your uploaded cards in the "Your Cards" tab and filter by group.

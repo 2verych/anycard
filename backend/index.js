@@ -7,11 +7,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const morgan = require('morgan');
+const sharp = require('sharp');
 
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const PREVIEW_SIZE = parseInt(process.env.PREVIEW_SIZE) || 128;
 
 app.use(morgan('dev'));
 app.use(cors({
@@ -78,8 +80,26 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.post('/upload', ensureAuthenticated, upload.single('file'), (req, res) => {
-  res.json({ success: true });
+app.post('/upload', ensureAuthenticated, upload.single('file'), async (req, res) => {
+  try {
+    const email = req.user.emails[0].value;
+    const userDir = path.join(__dirname, 'uploads', email);
+    const previewDir = path.join(userDir, 'previews');
+    fs.mkdirSync(previewDir, { recursive: true });
+
+    const comment = req.body.comment || '';
+    if (comment) {
+      fs.writeFileSync(path.join(userDir, req.file.filename + '.txt'), comment);
+    }
+
+    const previewPath = path.join(previewDir, req.file.filename);
+    await sharp(req.file.path).resize(PREVIEW_SIZE).toFile(previewPath);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.status(500).json({ error: 'Upload failed' });
+  }
 });
 
 app.get('/cards', ensureAuthenticated, (req, res) => {
@@ -87,12 +107,29 @@ app.get('/cards', ensureAuthenticated, (req, res) => {
   const userDir = path.join(__dirname, 'uploads', email);
   fs.readdir(userDir, (err, files) => {
     if (err) return res.json([]);
-    const urls = files.map(f => `/uploads/${email}/${f}`);
-    res.json(urls);
+    const result = files
+      .filter(f => !f.endsWith('.txt') && f !== 'previews')
+      .map(f => {
+        const commentPath = path.join(userDir, f + '.txt');
+        let comment = '';
+        if (fs.existsSync(commentPath)) {
+          comment = fs.readFileSync(commentPath, 'utf8');
+        }
+        return {
+          original: `/uploads/${email}/${f}`,
+          preview: `/uploads/${email}/previews/${f}`,
+          comment,
+        };
+      });
+    res.json(result);
   });
 });
 
 app.use('/uploads', ensureAuthenticated, express.static(path.join(__dirname, 'uploads')));
+
+app.get('/config', (req, res) => {
+  res.json({ previewSize: PREVIEW_SIZE });
+});
 
 app.get('/me', (req, res) => {
   if (req.isAuthenticated()) {

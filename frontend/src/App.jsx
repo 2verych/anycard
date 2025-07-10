@@ -160,12 +160,12 @@ function App() {
     const x = e.clientX - rect.left;
     const ratio = x / rect.width;
     if (fullView) {
-      if (ratio <= 0.15) showPrev();
-      else if (ratio >= 0.85) showNext();
+      if (ratio <= 0.25) showPrev();
+      else if (ratio >= 0.75) showNext();
       else setFullView(false);
     } else {
-      if (ratio <= 0.15) showPrev();
-      else if (ratio >= 0.85) showNext();
+      if (ratio <= 0.25) showPrev();
+      else if (ratio >= 0.75) showNext();
       else setFullView(true);
     }
   };
@@ -459,15 +459,15 @@ function App() {
             </Toolbar>
           </AppBar>
         )}
-        <DialogContent sx={{ p:2, display:'flex', flexDirection:'column', alignItems:'center', height:'100%', boxSizing:'border-box' }}>
+        <DialogContent sx={{ p: fullView ? 0 : 2, m:0, display:'flex', flexDirection:'column', alignItems:'center', height:'100%', boxSizing:'border-box' }}>
           {dialogCard && (
             <>
               <Box
-                sx={{ width:'100%', flexGrow:1, display:'flex', justifyContent:'center', alignItems:'center' }}
+                sx={{ width:'100%', flexGrow:1, display:'flex', justifyContent:'center', alignItems:'center', m:0, p:0 }}
                 onPointerDown={handlePointerDownViewer}
                 onPointerUp={handlePointerUpViewer}
               >
-                <Box component="img" src={`${API_URL}${dialogCard.original}`} alt="card" sx={{ width:'100%', height:'100%', objectFit:'contain' }} />
+                <Box component="img" src={`${API_URL}${dialogCard.original}`} alt="card" sx={{ width:'100%', height:'100%', objectFit:'contain', m:0, p:0 }} />
               </Box>
               {!fullView && dialogCard.owner === user.emails?.[0]?.value && (
                 <>

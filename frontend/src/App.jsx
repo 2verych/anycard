@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, ListSubheader, Avatar } from '@mui/material';
+import { useDrop } from 'react-dnd';
+import { NativeTypes } from 'react-dnd-html5-backend';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
@@ -27,6 +29,14 @@ function App() {
   const [completedCrop, setCompletedCrop] = useState(null);
   const imageRef = useRef(null);
   const fileInputRef = useRef(null);
+  const [{ isOver }, drop] = useDrop(() => ({
+    accept: [NativeTypes.FILE],
+    drop: (item) => {
+      const f = item.files?.[0];
+      if (f) setFile(f);
+    },
+    collect: monitor => ({ isOver: monitor.isOver() }),
+  }));
 
   useEffect(() => {
     fetch(`${API_URL}/config`)
@@ -231,10 +241,9 @@ function App() {
         <form onSubmit={handleUpload}>
           <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={e=>setFile(e.target.files[0])} />
           <Box
+            ref={drop}
             onClick={file ? undefined : ()=>fileInputRef.current?.click()}
-            onDragOver={e=>e.preventDefault()}
-            onDrop={e=>{ e.preventDefault(); if(e.dataTransfer.files && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}
-            sx={{ width:'100%', height:'25vh', border:'2px dashed gray', mb:1, display:'flex', justifyContent:'center', alignItems:'center', position:'relative', overflow:'hidden', cursor: file ? 'default' : 'pointer' }}
+            sx={{ width:'100%', maxWidth:400, height:'25vh', mx:'auto', border:'2px dashed gray', mb:1, display:'flex', justifyContent:'center', alignItems:'center', position:'relative', overflow:'hidden', cursor: file ? 'default' : 'pointer', borderColor: isOver ? 'primary.main' : 'gray' }}
           >
             {file ? (
               <ReactCrop
@@ -253,7 +262,7 @@ function App() {
                 />
               </ReactCrop>
             ) : (
-              <Typography color="primary" sx={{ textDecoration:'underline' }}>Drag and drop or click to choose file...</Typography>
+              <Typography color="primary" sx={{ textDecoration:'underline' }}>Click or drop a file...</Typography>
             )}
           </Box>
           {file && (

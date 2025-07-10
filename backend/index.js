@@ -349,6 +349,22 @@ app.post('/cards/:file/groups/:groupId', ensureAuthenticated, (req, res) => {
   res.json(meta);
 });
 
+app.delete('/cards/:file', ensureAuthenticated, (req, res) => {
+  const userDir = getUserDir(req);
+  const file = path.join(userDir, req.params.file);
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Not found' });
+  try {
+    fs.unlinkSync(file);
+  } catch {}
+  try {
+    fs.unlinkSync(path.join(userDir, 'previews', req.params.file));
+  } catch {}
+  try {
+    fs.unlinkSync(path.join(userDir, 'meta', req.params.file + '.json'));
+  } catch {}
+  res.json({ success: true });
+});
+
 app.use('/uploads', ensureAuthenticated, express.static(path.join(__dirname, 'uploads')));
 
 app.get('/config', (req, res) => {

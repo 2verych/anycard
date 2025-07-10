@@ -486,7 +486,7 @@ function App() {
             setShareInput('');
           }}>{t('pages.main.addButton')}</Button>
           <Stack direction="row" spacing={1} sx={{ flexWrap:'wrap', mb:2 }}>
-            {shareEmails.map(e=>(
+            {shareEmails.map(e => (
               <Chip
                 key={e}
                 label={e}
@@ -495,7 +495,8 @@ function App() {
                   : shareGroup?.used?.includes(e)
                   ? 'success'
                   : 'default'}
-                onDelete={()=>setShareEmails(shareEmails.filter(x=>x!==e))}
+                sx={shareGroup?.used?.includes(e) ? { bgcolor: 'success.light' } : undefined}
+                onDelete={() => setShareEmails(shareEmails.filter(x => x !== e))}
               />
             ))}
           </Stack>

@@ -13,6 +13,13 @@ function App() {
   const [file, setFile] = useState(null);
   const [comment, setComment] = useState('');
   const [dialogCard, setDialogCard] = useState(null);
+  const [dialogList, setDialogList] = useState([]);
+  const [dialogIndex, setDialogIndex] = useState(null);
+  const [fullView, setFullView] = useState(false);
+  const startX = useRef(null);
+  const viewerRef = useRef(null);
+  const imgRef = useRef(null);
+  const [imgSize, setImgSize] = useState({ width: 'auto', height: 'auto' });
   const [snackOpen, setSnackOpen] = useState(false);
   const [config, setConfig] = useState({ previewSize: 128 });
   const [groups, setGroups] = useState([]);
@@ -32,6 +39,11 @@ function App() {
   const [confirmDeleteShared, setConfirmDeleteShared] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const fileInputRef = useRef(null);
+  const filteredCards = cards.filter(c => {
+    if (selectedGroup === 'all') return true;
+    if (selectedGroup.startsWith('s:')) return true;
+    return c.groups.includes(selectedGroup);
+  });
   const [{ isOver }, drop] = useDrop(() => ({
     accept: [NativeTypes.FILE],
     drop: (item) => {
@@ -125,6 +137,85 @@ function App() {
     if (selectedCards.includes(file)) setSelectedCards(selectedCards.filter(f => f !== file));
     else setSelectedCards([...selectedCards, file]);
   };
+
+  const showCard = (idx) => {
+    if (idx < 0 || idx >= dialogList.length) return;
+    setDialogCard(dialogList[idx]);
+    setDialogIndex(idx);
+  };
+
+  const showPrev = () => {
+    if (dialogList.length > 1 && dialogIndex !== null) {
+      const ni = (dialogIndex - 1 + dialogList.length) % dialogList.length;
+      showCard(ni);
+    }
+  };
+
+  const showNext = () => {
+    if (dialogList.length > 1 && dialogIndex !== null) {
+      const ni = (dialogIndex + 1) % dialogList.length;
+      showCard(ni);
+    }
+  };
+
+  const handleViewerClick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const ratio = x / rect.width;
+    if (fullView) {
+      if (ratio <= 0.15) showPrev();
+      else if (ratio >= 0.85) showNext();
+      else setFullView(false);
+    } else {
+      if (ratio <= 0.15) showPrev();
+      else if (ratio >= 0.85) showNext();
+      else setFullView(true);
+    }
+  };
+
+  const handlePointerDownViewer = (e) => {
+    startX.current = e.clientX;
+  };
+
+  const handlePointerUpViewer = (e) => {
+    if (startX.current !== null) {
+      const diff = e.clientX - startX.current;
+      if (Math.abs(diff) > 40) {
+        if (diff > 0) showPrev();
+        else showNext();
+      } else {
+        handleViewerClick(e);
+      }
+    }
+    startX.current = null;
+  };
+
+  const computeImgSize = () => {
+    const cont = viewerRef.current;
+    const img = imgRef.current;
+    if (!cont || !img) return;
+    const rect = cont.getBoundingClientRect();
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    if (!iw || !ih) return;
+    const ratio = iw / ih;
+    let w = rect.width;
+    let h = w / ratio;
+    if (h > rect.height) {
+      h = rect.height;
+      w = h * ratio;
+    }
+    setImgSize({ width: w, height: h });
+  };
+
+  useEffect(() => {
+    computeImgSize();
+  }, [dialogCard, fullView]);
+
+  useEffect(() => {
+    window.addEventListener('resize', computeImgSize);
+    return () => window.removeEventListener('resize', computeImgSize);
+  }, []);
 
 
   const handleUpload = async (e) => {
@@ -228,13 +319,7 @@ function App() {
         )}
         {cards.length === 0 && <Typography>No cards uploaded.</Typography>}
         <Grid container spacing={2}>
-          {cards.filter(c=>{
-            if(selectedGroup==='all') return true;
-            if(selectedGroup.startsWith('s:')){
-              return true; // shared cards already filtered server-side
-            }
-            return c.groups.includes(selectedGroup);
-          }).map((card, i) => (
+          {filteredCards.map((card, i) => (
             <Grid item key={i}>
               <Box
                 component="img"
@@ -242,7 +327,13 @@ function App() {
                 alt="card"
                 sx={{ width: config.previewSize, height: config.previewSize, objectFit: 'cover', cursor: 'pointer', borderRadius:2, boxShadow: selectedCards.includes(card.filename)?'0 0 0 3px #1976d2':'none', opacity: multiSelect && !selectedCards.includes(card.filename)?0.7:1 }}
                 onPointerDown={()=>startHold(card)}
-                onPointerUp={()=>{ cancelHold(); if(multiSelect){ toggleCard(card.filename); } else if(!holdTriggered.current){ setDialogCard(card); } }}
+                onPointerUp={()=>{ cancelHold(); if(multiSelect){ toggleCard(card.filename); } else if(!holdTriggered.current){
+                  const idx = filteredCards.findIndex(c=>c.filename===card.filename);
+                  setDialogList(filteredCards);
+                  setDialogIndex(idx);
+                  setDialogCard(card);
+                  setFullView(false);
+                } }}
                 onPointerLeave={cancelHold}
               />
             </Grid>
@@ -389,18 +480,34 @@ function App() {
           </Box>
         </DialogContent>
       </Dialog>
-      <Dialog open={!!dialogCard} onClose={() => setDialogCard(null)} fullScreen>
-        <AppBar sx={{ position: 'relative' }}>
-          <Toolbar>
-            <Typography sx={{ flexGrow:1 }} variant="h6">{dialogCard?.comment}</Typography>
-            <Button color="inherit" onClick={() => setDialogCard(null)}>Close</Button>
-          </Toolbar>
-        </AppBar>
-        <DialogContent sx={{ p:2, display:'flex', flexDirection:'column', alignItems:'center' }}>
+      <Dialog open={!!dialogCard} onClose={() => { setDialogCard(null); setFullView(false); }} fullScreen>
+        {!fullView && (
+          <AppBar sx={{ position: 'relative' }}>
+            <Toolbar>
+              <Typography sx={{ flexGrow:1 }} variant="h6">{dialogCard?.comment}</Typography>
+              <Button color="inherit" onClick={() => { setDialogCard(null); setFullView(false); }}>Close</Button>
+            </Toolbar>
+          </AppBar>
+        )}
+        <DialogContent sx={{ p: fullView ? 0 : 2, m:0, display:'flex', flexDirection:'column', alignItems:'center', height:'100%', boxSizing:'border-box' }}>
           {dialogCard && (
             <>
-              <Box component="img" src={`${API_URL}${dialogCard.original}`} alt="card" sx={{ width:'100%', height:'100%', objectFit:'contain' }} />
-              {dialogCard.owner === user.emails?.[0]?.value && (
+              <Box
+                sx={{ width:'100%', flexGrow:1, display:'flex', justifyContent:'center', alignItems:'center', m:0, p:0 }}
+                onPointerDown={handlePointerDownViewer}
+                onPointerUp={handlePointerUpViewer}
+                ref={viewerRef}
+              >
+                <Box
+                  component="img"
+                  src={`${API_URL}${dialogCard.original}`}
+                  alt="card"
+                  ref={imgRef}
+                  onLoad={computeImgSize}
+                  sx={{ width: imgSize.width, height: imgSize.height, m:0, p:0 }}
+                />
+              </Box>
+              {!fullView && dialogCard.owner === user.emails?.[0]?.value && (
                 <>
                   <Stack direction="row" spacing={1} sx={{ mt:2, flexWrap:'wrap', justifyContent:'center' }}>
                     {groups.map(g=>(

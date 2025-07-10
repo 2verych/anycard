@@ -11,6 +11,11 @@ const sharp = require('sharp');
 
 require('dotenv').config();
 
+if (!process.env.SESSION_SECRET) {
+  console.error('SESSION_SECRET is required');
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 const PREVIEW_SIZE = parseInt(process.env.PREVIEW_SIZE) || 128;
@@ -145,7 +150,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(session({
-  secret: 'secret',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
 }));

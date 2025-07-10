@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
-import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, ListSubheader, Avatar } from '@mui/material';
+import { useLocalization } from './localization';
+import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, ListSubheader, Avatar, IconButton } from '@mui/material';
 import { useDrop } from 'react-dnd';
 import { NativeTypes } from 'react-dnd-html5-backend';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 function App() {
+  const { t, lang, setLang, langs } = useLocalization();
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState(0);
   const [cards, setCards] = useState([]);
@@ -246,11 +248,11 @@ function App() {
       <Box sx={{ height:'100vh', display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center' }}>
         <svg width="120" height="120" viewBox="0 0 120 120">
           <rect x="10" y="10" width="100" height="100" rx="20" fill="#1976d2" />
-          <text x="60" y="70" textAnchor="middle" fontSize="40" fill="white">AC</text>
+          <text x="60" y="70" textAnchor="middle" fontSize="40" fill="white">SC</text>
         </svg>
-        <Typography variant="h4" sx={{ my:2 }}>AnyCard</Typography>
+        <Typography variant="h4" sx={{ my:2 }}>{t('pages.main.appName')}</Typography>
         <Button variant="contained" color="primary" href={`${API_URL}/auth/google`}>
-          Login with Google
+          {t('pages.main.loginButton')}
         </Button>
       </Box>
     );
@@ -260,24 +262,36 @@ function App() {
     <Box>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>AnyCard</Typography>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>{t('pages.main.appName')}</Typography>
           <Box sx={{ display:'flex', alignItems:'center', mr:2 }}>
             <Avatar src={user.photos?.[0]?.value} sx={{ width:32, height:32, mr:1 }} />
             <Typography>{user.displayName}</Typography>
           </Box>
-          <Button color="inherit" href={`${API_URL}/auth/google`}>Change User</Button>
+          <FormControl size="small" sx={{ mr:2, minWidth:80 }}>
+            <Select value={lang} onChange={e=>setLang(e.target.value)}>
+              {Object.entries(langs).map(([code, name])=>(
+                <MenuItem key={code} value={code}>{name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <IconButton color="inherit" href={`${API_URL}/auth/google`} title={t('pages.main.changeUser')}>
+            <svg width="24" height="24" viewBox="0 0 24 24">
+              <path d="M10 17l5-5-5-5v3H3v4h7v3z" fill="currentColor" />
+              <path d="M13 21h8V3h-8v2h6v14h-6v2z" fill="currentColor" />
+            </svg>
+          </IconButton>
         </Toolbar>
       </AppBar>
       <Tabs value={tab} onChange={(_, v) => setTab(v)} centered>
-        <Tab label="Your Cards" />
-        <Tab label="Upload" />
-        <Tab label="Groups" />
-        <Tab label="Shared" />
+        <Tab label={t('pages.main.tabs.yourCards')} />
+        <Tab label={t('pages.main.tabs.upload')} />
+        <Tab label={t('pages.main.tabs.groups')} />
+        <Tab label={t('pages.main.tabs.shared')} />
       </Tabs>
       <Box sx={{ p:2 }} hidden={tab!==0}>
         <FormControl sx={{ mb:2, minWidth:200 }}>
-          <InputLabel>Group</InputLabel>
-          <Select value={selectedGroup} label="Group" onChange={e=>setSelectedGroup(e.target.value)}>
+          <InputLabel>{t('pages.main.groupLabel')}</InputLabel>
+          <Select value={selectedGroup} label={t('pages.main.groupLabel')} onChange={e=>setSelectedGroup(e.target.value)}>
             {(() => {
               const myGroups = [...groups].sort((a,b)=>{
                 if(a.id==='default') return -1;
@@ -292,7 +306,7 @@ function App() {
               }, {});
               const items = [
                 ...myGroups.map(g => (
-                  <MenuItem key={g.id} value={g.id}>{g.name} ({g.count})</MenuItem>
+                  <MenuItem key={g.id} value={g.id}>{g.id==='default'?t('defaultGroupName'):g.name} ({g.count})</MenuItem>
                 )),
                 ...Object.entries(shared).flatMap(([owner, arr]) => [
                   <ListSubheader key={owner}>{owner}</ListSubheader>,
@@ -313,11 +327,11 @@ function App() {
               </Button>
             )}
             <Button variant="outlined" onClick={()=>{ setMultiSelect(false); setSelectedCards([]); }}>
-              Cancel
+              {t('pages.main.cancelButton')}
             </Button>
           </Box>
         )}
-        {cards.length === 0 && <Typography>No cards uploaded.</Typography>}
+        {cards.length === 0 && <Typography>{t('pages.main.noCards')}</Typography>}
         <Grid container spacing={2}>
           {filteredCards.map((card, i) => (
             <Grid item key={i}>
@@ -351,13 +365,13 @@ function App() {
             {file ? (
               <Box component="img" src={URL.createObjectURL(file)} alt="preview" sx={{ width:'100%', height:'100%', objectFit:'contain' }} />
             ) : (
-              <Typography color="primary" sx={{ textDecoration:'underline' }}>Click or drop a file...</Typography>
+              <Typography color="primary" sx={{ textDecoration:'underline' }}>{t('pages.main.clickOrDrop')}</Typography>
             )}
           </Box>
           {file && (
-            <Typography onClick={()=>{ setFile(null); if(fileInputRef.current) fileInputRef.current.value=''; }} color="primary" sx={{ cursor:'pointer', mb:1, textDecoration:'underline' }}>Reset selected file</Typography>
+            <Typography onClick={()=>{ setFile(null); if(fileInputRef.current) fileInputRef.current.value=''; }} color="primary" sx={{ cursor:'pointer', mb:1, textDecoration:'underline' }}>{t('pages.main.resetFile')}</Typography>
           )}
-          <TextField label="Comment" multiline fullWidth value={comment} onChange={e=>setComment(e.target.value)} sx={{ mb:2 }} />
+          <TextField label={t('pages.main.commentLabel')} multiline fullWidth value={comment} onChange={e=>setComment(e.target.value)} sx={{ mb:2 }} />
           <FormGroup row sx={{ my:1 }}>
             {groups.map(g=>{
               const checked = uploadGroups.includes(g.id);
@@ -375,27 +389,36 @@ function App() {
                       }}
                     />
                   }
-                  label={g.name}
+                  label={g.id==='default'?t('defaultGroupName'):g.name}
                 />
               );
             })}
           </FormGroup>
-          <Button type="submit" variant="contained">Upload</Button>
+          <Button type="submit" variant="contained">{t('pages.main.uploadButtonText')}</Button>
         </form>
       </Box>
       <Box sx={{ p:2 }} hidden={tab!==2}>
         <Box sx={{ display:'flex', alignItems:'center', mb:2 }}>
-          <TextField label="New group" size="small" sx={{ mr:2 }} value={newGroupName} onChange={e=>setNewGroupName(e.target.value)} />
+          <TextField label={t('pages.main.newGroup')} size="small" sx={{ mr:2 }} value={newGroupName} onChange={e=>setNewGroupName(e.target.value)} />
           <Button variant="contained" onClick={()=>{
-            fetch(`${API_URL}/groups`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:newGroupName||'Group'})}).then(()=>{setNewGroupName(''); loadGroups();});
-          }}>Add</Button>
+            fetch(`${API_URL}/groups`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:newGroupName||t('pages.main.groupDefault')})}).then(()=>{setNewGroupName(''); loadGroups();});
+          }}>{t('pages.main.addButton')}</Button>
         </Box>
         {groups.map(g=> (
           <Box key={g.id} sx={{ mb:1, display:'flex', alignItems:'center' }}>
             <TextField size="small" value={g.name} onChange={e=>setGroups(groups.map(gr=>gr.id===g.id?{...gr,name:e.target.value}:gr))} sx={{ mr:2 }} />
             <Typography sx={{ mr:2 }}>({g.count})</Typography>
-            <Button size="small" onClick={()=>{ setShareGroup(g); setShareEmails(g.emails||[]); setShareInput(''); }}>
-              Share ({g.emails?.length || 0})
+            <Button size="small" onClick={()=>{
+              fetch(`${API_URL}/groups`, { credentials:'include' })
+                .then(res=>res.json())
+                .then(list=>{
+                  const fresh=list.find(gr=>gr.id===g.id)||g;
+                  setShareGroup(fresh);
+                  setShareEmails(fresh.emails||[]);
+                  setShareInput('');
+                });
+            }}>
+              {t('pages.main.shareButton')} ({g.emails?.length || 0})
             </Button>
             {g.id!=='default' && (
               <>
@@ -403,18 +426,18 @@ function App() {
                   <Button size="small" onClick={()=>{
                     const name = g.name.trim();
                     const invalid = /[<>\\|'"$%@#]/.test(name);
-                    if(!name){ showError('Name required'); return; }
-                    if(invalid){ showError('Invalid characters'); return; }
-                    if(groups.some(gr=>gr.id!==g.id && gr.name.trim()===name)) { showError('Name must be unique'); return; }
+                    if(!name){ showError(t('errors.nameRequired')); return; }
+                    if(invalid){ showError(t('errors.invalidChars')); return; }
+                    if(groups.some(gr=>gr.id!==g.id && gr.name.trim()===name)) { showError(t('errors.nameUnique')); return; }
                     fetch(`${API_URL}/groups/${g.id}`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})}).then(()=>{
                       setGroups(groups.map(gr=>gr.id===g.id?{...gr, originalName:name}:gr));
                       loadGroups();
                     });
-                  }}>Save</Button>
+                  }}>{t('pages.main.saveButton')}</Button>
                 )}
                 <Button size="small" color="error" onClick={()=>{
                   setConfirmDeleteGroup(g.id);
-                }}>Delete</Button>
+                }}>{t('pages.main.deleteButton')}</Button>
               </>
             )}
           </Box>
@@ -432,10 +455,10 @@ function App() {
                   <Typography sx={{ mr:2 }}>{sg.name} ({sg.count})</Typography>
                   <FormControlLabel control={<Checkbox checked={sg.showInMy} onChange={e=>{
                     fetch(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/show`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({show:e.target.checked})}).then(loadSharedGroups);
-                  }} />} label="Show in my groups" />
+                  }} />} label={t('pages.main.showInMyGroups')} />
                   <Button size="small" color="error" onClick={()=>{
                     setConfirmDeleteShared({owner: sg.owner, id: sg.id});
-                  }}>Delete</Button>
+                  }}>{t('pages.main.deleteButton')}</Button>
                 </Box>
               </Box>
             ))}
@@ -444,14 +467,14 @@ function App() {
       </Box>
       <Dialog open={!!shareGroup} onClose={()=>setShareGroup(null)}>
         <DialogContent>
-          <Typography variant="h6" sx={{ mb:2 }}>Share {shareGroup?.name}</Typography>
+          <Typography variant="h6" sx={{ mb:2 }}>{t('pages.main.shareTitle')} {shareGroup?.name}</Typography>
           <TextField
-            label="Add emails"
+            label={t('pages.main.addEmails')}
             multiline
             fullWidth
             value={shareInput}
             onChange={e=>setShareInput(e.target.value)}
-            placeholder="email@example.com"
+            placeholder={t('pages.main.emailPlaceholder')}
             sx={{ mb:2 }}
           />
           <Button sx={{ mb:2 }} onClick={()=>{
@@ -461,22 +484,26 @@ function App() {
               setShareEmails(Array.from(new Set([...shareEmails, ...valid])));
             }
             setShareInput('');
-          }}>Add</Button>
+          }}>{t('pages.main.addButton')}</Button>
           <Stack direction="row" spacing={1} sx={{ flexWrap:'wrap', mb:2 }}>
             {shareEmails.map(e=>(
               <Chip
                 key={e}
                 label={e}
-                color={shareGroup?.rejected?.includes(e) ? 'error' : 'default'}
+                color={shareGroup?.rejected?.includes(e)
+                  ? 'error'
+                  : shareGroup?.used?.includes(e)
+                  ? 'success'
+                  : 'default'}
                 onDelete={()=>setShareEmails(shareEmails.filter(x=>x!==e))}
               />
             ))}
           </Stack>
           <Box sx={{ textAlign:'right' }}>
-            <Button onClick={()=>setShareGroup(null)} sx={{ mr:1 }}>Cancel</Button>
+            <Button onClick={()=>setShareGroup(null)} sx={{ mr:1 }}>{t('pages.main.cancelButton')}</Button>
             <Button variant="contained" onClick={()=>{
               fetch(`${API_URL}/groups/${shareGroup.id}/emails`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({emails:shareEmails})}).then(()=>{ loadGroups(); setShareGroup(null);});
-            }}>Save</Button>
+            }}>{t('pages.main.saveButton')}</Button>
           </Box>
         </DialogContent>
       </Dialog>
@@ -485,7 +512,7 @@ function App() {
           <AppBar sx={{ position: 'relative' }}>
             <Toolbar>
               <Typography sx={{ flexGrow:1 }} variant="h6">{dialogCard?.comment}</Typography>
-              <Button color="inherit" onClick={() => { setDialogCard(null); setFullView(false); }}>Close</Button>
+              <Button color="inherit" onClick={() => { setDialogCard(null); setFullView(false); }}>{t('pages.main.closeButton')}</Button>
             </Toolbar>
           </AppBar>
         )}
@@ -513,7 +540,7 @@ function App() {
                     {groups.map(g=>(
                       <Chip
                         key={g.id}
-                        label={g.name}
+                        label={g.id==='default'?t('defaultGroupName'):g.name}
                         color={dialogCard.groups?.includes(g.id)?'primary':'default'}
                         clickable={g.id!=='default'}
                         onClick={g.id==='default'?undefined:()=>{
@@ -526,7 +553,7 @@ function App() {
                       />
                     ))}
                   </Stack>
-                  <Button variant="contained" color="error" sx={{ mt:2 }} onClick={()=>setConfirmDeleteCards([dialogCard.filename])}>Delete</Button>
+                  <Button variant="contained" color="error" sx={{ mt:2 }} onClick={()=>setConfirmDeleteCards([dialogCard.filename])}>{t('pages.main.deleteButton')}</Button>
                 </>
               )}
             </>
@@ -535,9 +562,9 @@ function App() {
       </Dialog>
       <Dialog open={!!confirmDeleteCards} onClose={()=>setConfirmDeleteCards(null)}>
         <DialogContent>
-          <Typography sx={{ mb:2 }}>Delete selected card(s)?</Typography>
+          <Typography sx={{ mb:2 }}>{t('pages.main.deleteSelectedQuestion')}</Typography>
           <Box sx={{ textAlign:'right' }}>
-            <Button onClick={()=>setConfirmDeleteCards(null)} sx={{ mr:1 }}>Cancel</Button>
+            <Button onClick={()=>setConfirmDeleteCards(null)} sx={{ mr:1 }}>{t('pages.main.cancelButton')}</Button>
             <Button variant="contained" color="error" onClick={()=>{
               const files = Array.isArray(confirmDeleteCards) ? confirmDeleteCards : [];
               Promise.all(files.map(f=>fetch(`${API_URL}/cards/${f}`, {method:'DELETE', credentials:'include'})))
@@ -548,36 +575,36 @@ function App() {
                     setDialogCard(null);
                   }
                 })
-                .catch(()=>{ showError('Delete failed'); })
+                .catch(()=>{ showError(t('errors.deleteFailed')); })
                 .finally(()=>{ setConfirmDeleteCards(null); setSelectedCards([]); setMultiSelect(false); });
-            }}>Delete</Button>
+            }}>{t('pages.main.deleteButton')}</Button>
           </Box>
         </DialogContent>
       </Dialog>
       <Dialog open={!!confirmDeleteGroup} onClose={()=>setConfirmDeleteGroup(null)}>
         <DialogContent>
-          <Typography sx={{ mb:2 }}>Delete this group?</Typography>
+          <Typography sx={{ mb:2 }}>{t('pages.main.deleteGroupQuestion')}</Typography>
           <Box sx={{ textAlign:'right' }}>
-            <Button onClick={()=>setConfirmDeleteGroup(null)} sx={{ mr:1 }}>Cancel</Button>
+            <Button onClick={()=>setConfirmDeleteGroup(null)} sx={{ mr:1 }}>{t('pages.main.cancelButton')}</Button>
             <Button variant="contained" color="error" onClick={()=>{
               fetch(`${API_URL}/groups/${confirmDeleteGroup}`, {method:'DELETE', credentials:'include'}).then(()=>{ loadGroups(); setConfirmDeleteGroup(null); });
-            }}>Delete</Button>
+            }}>{t('pages.main.deleteButton')}</Button>
           </Box>
         </DialogContent>
       </Dialog>
       <Dialog open={!!confirmDeleteShared} onClose={()=>setConfirmDeleteShared(null)}>
         <DialogContent>
-          <Typography sx={{ mb:2 }}>Remove shared group?</Typography>
+          <Typography sx={{ mb:2 }}>{t('pages.main.removeSharedQuestion')}</Typography>
           <Box sx={{ textAlign:'right' }}>
-            <Button onClick={()=>setConfirmDeleteShared(null)} sx={{ mr:1 }}>Cancel</Button>
+            <Button onClick={()=>setConfirmDeleteShared(null)} sx={{ mr:1 }}>{t('pages.main.cancelButton')}</Button>
             <Button variant="contained" color="error" onClick={()=>{
               fetch(`${API_URL}/shared-groups/${confirmDeleteShared?.owner}/${confirmDeleteShared?.id}/delete`, {method:'POST', credentials:'include'}).then(()=>{ loadSharedGroups(); setConfirmDeleteShared(null); });
-            }}>Delete</Button>
+            }}>{t('pages.main.deleteButton')}</Button>
           </Box>
         </DialogContent>
       </Dialog>
       <Snackbar open={snackOpen} autoHideDuration={3000} onClose={() => setSnackOpen(false)}>
-        <Alert severity="success" onClose={() => setSnackOpen(false)}>File uploaded</Alert>
+        <Alert severity="success" onClose={() => setSnackOpen(false)}>{t('pages.main.fileUploaded')}</Alert>
       </Snackbar>
       <Snackbar open={!!errorMsg} autoHideDuration={4000} onClose={()=>setErrorMsg('')}>
         <Alert severity="error" onClose={()=>setErrorMsg('')}>{errorMsg}</Alert>

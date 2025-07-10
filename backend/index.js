@@ -23,6 +23,10 @@ const MAX_CARDS = parseInt(process.env.MAX_CARDS) || 100;
 const MAX_GROUPS = parseInt(process.env.MAX_GROUPS) || 10;
 const MAX_SHARE_EMAILS = parseInt(process.env.MAX_SHARE_EMAILS) || 10;
 
+function validPathComponent(name) {
+  return typeof name === 'string' && !name.includes('..') && !name.includes('/') && !name.includes('\\');
+}
+
 function loadLocalization() {
   const dir = path.join(__dirname, 'localization');
   const result = {};
@@ -358,6 +362,9 @@ app.get('/shared-groups', ensureAuthenticated, (req, res) => {
 });
 
 app.post('/shared-groups/:owner/:id/delete', ensureAuthenticated, (req, res) => {
+  if (!validPathComponent(req.params.owner)) {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
   const email = req.user.emails[0].value;
   const myDir = getUserDir(req);
   const state = loadSharedState(myDir);
@@ -374,6 +381,9 @@ app.post('/shared-groups/:owner/:id/delete', ensureAuthenticated, (req, res) => 
 });
 
 app.post('/shared-groups/:owner/:id/show', ensureAuthenticated, (req, res) => {
+  if (!validPathComponent(req.params.owner)) {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
   const myDir = getUserDir(req);
   const state = loadSharedState(myDir);
   const key = req.params.owner + '/' + req.params.id;
@@ -392,6 +402,9 @@ app.post('/shared-groups/:owner/:id/show', ensureAuthenticated, (req, res) => {
 });
 
 app.get('/shared-cards/:owner/:group', ensureAuthenticated, (req, res) => {
+  if (!validPathComponent(req.params.owner)) {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
   const email = req.user.emails[0].value;
   const ownerDir = path.join(__dirname, 'uploads', req.params.owner);
   if (!fs.existsSync(ownerDir)) return res.json([]);
@@ -417,6 +430,9 @@ app.get('/shared-cards/:owner/:group', ensureAuthenticated, (req, res) => {
 });
 
 app.post('/cards/:file/groups/:groupId', ensureAuthenticated, (req, res) => {
+  if (!validPathComponent(req.params.file)) {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
   const userDir = getUserDir(req);
   const meta = loadMeta(userDir, req.params.file);
   if (meta.groups.includes(req.params.groupId)) {
@@ -429,6 +445,9 @@ app.post('/cards/:file/groups/:groupId', ensureAuthenticated, (req, res) => {
 });
 
 app.delete('/cards/:file', ensureAuthenticated, (req, res) => {
+  if (!validPathComponent(req.params.file)) {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
   const userDir = getUserDir(req);
   const file = path.join(userDir, req.params.file);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'Not found' });

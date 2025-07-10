@@ -263,17 +263,17 @@ function App() {
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>{t('pages.main.appName')}</Typography>
-          <Box sx={{ display:'flex', alignItems:'center', mr:2 }}>
-            <Avatar src={user.photos?.[0]?.value} sx={{ width:32, height:32, mr:1 }} />
-            <Typography>{user.displayName}</Typography>
-          </Box>
           <FormControl size="small" sx={{ mr:2, minWidth:80 }}>
-            <Select value={lang} onChange={e=>setLang(e.target.value)}>
-              {Object.entries(langs).map(([code, name])=>(
+            <Select value={lang} onChange={e => setLang(e.target.value)}>
+              {Object.entries(langs).map(([code, name]) => (
                 <MenuItem key={code} value={code}>{name}</MenuItem>
               ))}
             </Select>
           </FormControl>
+          <Box sx={{ display:'flex', alignItems:'center', mr:2 }}>
+            <Avatar src={user.photos?.[0]?.value} sx={{ width:32, height:32, mr:1 }} />
+            <Typography>{user.displayName}</Typography>
+          </Box>
           <IconButton color="inherit" href={`${API_URL}/auth/google`} title={t('pages.main.changeUser')}>
             <svg width="24" height="24" viewBox="0 0 24 24">
               <path d="M10 17l5-5-5-5v3H3v4h7v3z" fill="currentColor" />
@@ -495,7 +495,7 @@ function App() {
                   : shareGroup?.used?.includes(e)
                   ? 'success'
                   : 'default'}
-                sx={shareGroup?.used?.includes(e) ? { bgcolor: 'success.light' } : undefined}
+                sx={shareGroup?.used?.includes(e) && !shareGroup?.rejected?.includes(e) ? { bgcolor: 'success.light' } : undefined}
                 onDelete={() => setShareEmails(shareEmails.filter(x => x !== e))}
               />
             ))}

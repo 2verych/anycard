@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack } from '@mui/material';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -16,6 +16,10 @@ function App() {
   const [selectedGroup, setSelectedGroup] = useState('default');
   const [uploadGroups, setUploadGroups] = useState(['default']);
   const [newGroupName, setNewGroupName] = useState('');
+  const [shareGroup, setShareGroup] = useState(null);
+  const [shareEmails, setShareEmails] = useState([]);
+  const [shareInput, setShareInput] = useState('');
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetch(`${API_URL}/config`)
@@ -66,6 +70,7 @@ function App() {
       body: formData,
     }).then(() => {
       setFile(null);
+      if(fileInputRef.current) fileInputRef.current.value='';
       setComment('');
       setUploadGroups(['default']);
       loadCards();
@@ -128,8 +133,16 @@ function App() {
       </Box>
       <Box sx={{ p:2 }} hidden={tab!==1}>
         <form onSubmit={handleUpload}>
-          <input type="file" accept="image/*" onChange={e=>setFile(e.target.files[0])} />
-          <TextField label="Comment" multiline value={comment} onChange={e=>setComment(e.target.value)} sx={{ mx:2, width:'300px' }} />
+          <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={e=>setFile(e.target.files[0])} />
+          <Box
+            onClick={()=>fileInputRef.current?.click()}
+            onDragOver={e=>e.preventDefault()}
+            onDrop={e=>{ e.preventDefault(); if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}
+            sx={{ width:'100%', height:'25vh', border:'2px dashed gray', mb:2, display:'flex', justifyContent:'center', alignItems:'center', cursor:'pointer' }}
+          >
+            <Typography color="primary" sx={{ textDecoration:'underline' }}>Drag and drop or click to choose file...</Typography>
+          </Box>
+          <TextField label="Comment" multiline fullWidth value={comment} onChange={e=>setComment(e.target.value)} sx={{ mb:2 }} />
           <FormGroup row sx={{ my:1 }}>
             {groups.map(g=>(
               <FormControlLabel key={g.id} control={<Checkbox checked={uploadGroups.includes(g.id)} onChange={e=>{
@@ -151,10 +164,16 @@ function App() {
           <Box key={g.id} sx={{ mb:1, display:'flex', alignItems:'center' }}>
             <TextField size="small" value={g.name} onChange={e=>setGroups(groups.map(gr=>gr.id===g.id?{...gr,name:e.target.value}:gr))} sx={{ mr:2 }} />
             <Typography sx={{ mr:2 }}>({g.count})</Typography>
+            <Button size="small" onClick={()=>{ setShareGroup(g); setShareEmails(g.emails||[]); setShareInput(''); }}>Share</Button>
             {g.id!=='default' && (
               <>
                 <Button size="small" onClick={()=>{
-                  fetch(`${API_URL}/groups/${g.id}`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:g.name})}).then(()=>loadGroups());
+                  const name = g.name.trim();
+                  const invalid = /[<>\\|'"$%@#]/.test(name);
+                  if(!name){ alert('Name required'); return; }
+                  if(invalid){ alert('Invalid characters'); return; }
+                  if(groups.some(gr=>gr.id!==g.id && gr.name.trim()===name)) { alert('Name must be unique'); return; }
+                  fetch(`${API_URL}/groups/${g.id}`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})}).then(()=>loadGroups());
                 }}>Save</Button>
                 <Button size="small" color="error" onClick={()=>{
                   fetch(`${API_URL}/groups/${g.id}`, {method:'DELETE', credentials:'include'}).then(()=>loadGroups());
@@ -164,6 +183,39 @@ function App() {
           </Box>
         ))}
       </Box>
+      <Dialog open={!!shareGroup} onClose={()=>setShareGroup(null)}>
+        <DialogContent>
+          <Typography variant="h6" sx={{ mb:2 }}>Share {shareGroup?.name}</Typography>
+          <TextField
+            label="Add emails"
+            multiline
+            fullWidth
+            value={shareInput}
+            onChange={e=>setShareInput(e.target.value)}
+            placeholder="email@example.com"
+            sx={{ mb:2 }}
+          />
+          <Button sx={{ mb:2 }} onClick={()=>{
+            const tokens = shareInput.split(/[\s,]+/).filter(t=>t);
+            const valid = tokens.filter(t=>/^\S+@\S+\.\S+$/.test(t));
+            if(valid.length){
+              setShareEmails(Array.from(new Set([...shareEmails, ...valid])));
+            }
+            setShareInput('');
+          }}>Add</Button>
+          <Stack direction="row" spacing={1} sx={{ flexWrap:'wrap', mb:2 }}>
+            {shareEmails.map(e=>(
+              <Chip key={e} label={e} onDelete={()=>setShareEmails(shareEmails.filter(x=>x!==e))} />
+            ))}
+          </Stack>
+          <Box sx={{ textAlign:'right' }}>
+            <Button onClick={()=>setShareGroup(null)} sx={{ mr:1 }}>Cancel</Button>
+            <Button variant="contained" onClick={()=>{
+              fetch(`${API_URL}/groups/${shareGroup.id}/emails`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({emails:shareEmails})}).then(()=>{ loadGroups(); setShareGroup(null);});
+            }}>Save</Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!dialogCard} onClose={() => setDialogCard(null)} fullScreen>
         <AppBar sx={{ position: 'relative' }}>
           <Toolbar>
@@ -177,9 +229,19 @@ function App() {
               <Box component="img" src={`${API_URL}${dialogCard.original}`} alt="card" sx={{ width:'100%', height:'100%', objectFit:'contain' }} />
               <Stack direction="row" spacing={1} sx={{ mt:2, flexWrap:'wrap', justifyContent:'center' }}>
                 {groups.map(g=>(
-                  <Chip key={g.id} label={g.name} color={dialogCard.groups?.includes(g.id)?'primary':'default'} onClick={()=>{
-                    fetch(`${API_URL}/cards/${dialogCard.filename}/groups/${g.id}`, {method:'POST', credentials:'include'}).then(()=>{ loadCards(); loadGroups(); setDialogCard({...dialogCard, groups: dialogCard.groups.includes(g.id)? dialogCard.groups.filter(x=>x!==g.id):[...dialogCard.groups,g.id]}); });
-                  }} />
+                  <Chip
+                    key={g.id}
+                    label={g.name}
+                    color={dialogCard.groups?.includes(g.id)?'primary':'default'}
+                    clickable={g.id!=='default'}
+                    onClick={g.id==='default'?undefined:()=>{
+                      fetch(`${API_URL}/cards/${dialogCard.filename}/groups/${g.id}`, {method:'POST', credentials:'include'}).then(()=>{
+                        loadCards();
+                        loadGroups();
+                        setDialogCard({...dialogCard, groups: dialogCard.groups.includes(g.id)? dialogCard.groups.filter(x=>x!==g.id):[...dialogCard.groups,g.id]});
+                      });
+                    }}
+                  />
                 ))}
               </Stack>
             </>

@@ -1,4 +1,4 @@
-# AnyCard Monorepo
+# Sharacard Monorepo
 
 This repository contains a simple client-server application for storing discount cards.
 

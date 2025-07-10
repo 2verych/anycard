@@ -408,7 +408,16 @@ function App() {
           <Box key={g.id} sx={{ mb:1, display:'flex', alignItems:'center' }}>
             <TextField size="small" value={g.name} onChange={e=>setGroups(groups.map(gr=>gr.id===g.id?{...gr,name:e.target.value}:gr))} sx={{ mr:2 }} />
             <Typography sx={{ mr:2 }}>({g.count})</Typography>
-            <Button size="small" onClick={()=>{ setShareGroup(g); setShareEmails(g.emails||[]); setShareInput(''); }}>
+            <Button size="small" onClick={()=>{
+              fetch(`${API_URL}/groups`, { credentials:'include' })
+                .then(res=>res.json())
+                .then(list=>{
+                  const fresh=list.find(gr=>gr.id===g.id)||g;
+                  setShareGroup(fresh);
+                  setShareEmails(fresh.emails||[]);
+                  setShareInput('');
+                });
+            }}>
               {t('pages.main.shareButton')} ({g.emails?.length || 0})
             </Button>
             {g.id!=='default' && (

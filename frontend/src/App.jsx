@@ -17,6 +17,9 @@ function App() {
   const [dialogIndex, setDialogIndex] = useState(null);
   const [fullView, setFullView] = useState(false);
   const startX = useRef(null);
+  const viewerRef = useRef(null);
+  const imgRef = useRef(null);
+  const [imgSize, setImgSize] = useState({ width: 'auto', height: 'auto' });
   const [snackOpen, setSnackOpen] = useState(false);
   const [config, setConfig] = useState({ previewSize: 128 });
   const [groups, setGroups] = useState([]);
@@ -160,12 +163,12 @@ function App() {
     const x = e.clientX - rect.left;
     const ratio = x / rect.width;
     if (fullView) {
-      if (ratio <= 0.25) showPrev();
-      else if (ratio >= 0.75) showNext();
+      if (ratio <= 0.15) showPrev();
+      else if (ratio >= 0.85) showNext();
       else setFullView(false);
     } else {
-      if (ratio <= 0.25) showPrev();
-      else if (ratio >= 0.75) showNext();
+      if (ratio <= 0.15) showPrev();
+      else if (ratio >= 0.85) showNext();
       else setFullView(true);
     }
   };
@@ -186,6 +189,33 @@ function App() {
     }
     startX.current = null;
   };
+
+  const computeImgSize = () => {
+    const cont = viewerRef.current;
+    const img = imgRef.current;
+    if (!cont || !img) return;
+    const rect = cont.getBoundingClientRect();
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    if (!iw || !ih) return;
+    const ratio = iw / ih;
+    let w = rect.width;
+    let h = w / ratio;
+    if (h > rect.height) {
+      h = rect.height;
+      w = h * ratio;
+    }
+    setImgSize({ width: w, height: h });
+  };
+
+  useEffect(() => {
+    computeImgSize();
+  }, [dialogCard, fullView]);
+
+  useEffect(() => {
+    window.addEventListener('resize', computeImgSize);
+    return () => window.removeEventListener('resize', computeImgSize);
+  }, []);
 
 
   const handleUpload = async (e) => {
@@ -466,8 +496,16 @@ function App() {
                 sx={{ width:'100%', flexGrow:1, display:'flex', justifyContent:'center', alignItems:'center', m:0, p:0 }}
                 onPointerDown={handlePointerDownViewer}
                 onPointerUp={handlePointerUpViewer}
+                ref={viewerRef}
               >
-                <Box component="img" src={`${API_URL}${dialogCard.original}`} alt="card" sx={{ width:'100%', height:'100%', objectFit:'contain', m:0, p:0 }} />
+                <Box
+                  component="img"
+                  src={`${API_URL}${dialogCard.original}`}
+                  alt="card"
+                  ref={imgRef}
+                  onLoad={computeImgSize}
+                  sx={{ width: imgSize.width, height: imgSize.height, m:0, p:0 }}
+                />
               </Box>
               {!fullView && dialogCard.owner === user.emails?.[0]?.value && (
                 <>

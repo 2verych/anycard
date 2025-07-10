@@ -40,6 +40,10 @@
     "nameRequired": "Name required",
     "invalidChars": "Invalid characters",
     "nameUnique": "Name must be unique",
-    "deleteFailed": "Delete failed"
+    "deleteFailed": "Delete failed",
+    "limitCards": "Card limit reached",
+    "limitGroups": "Group limit reached",
+    "limitEmails": "Email limit exceeded",
+    "uploadFailed": "Upload failed"
   }
 }

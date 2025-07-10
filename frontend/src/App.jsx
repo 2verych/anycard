@@ -228,19 +228,24 @@ function App() {
     formData.append('comment', comment);
     const groupsForUpload = uploadGroups.includes('default') ? uploadGroups : [...uploadGroups, 'default'];
     formData.append('groups', JSON.stringify(groupsForUpload));
-    fetch(`${API_URL}/upload`, {
+    const resp = await fetch(`${API_URL}/upload`, {
       method: 'POST',
       credentials: 'include',
       body: formData,
-    }).then(() => {
-      setFile(null);
-      if(fileInputRef.current) fileInputRef.current.value='';
-      setComment('');
-      setUploadGroups(['default']);
-      loadMyCards();
-      loadGroups();
-      setSnackOpen(true);
     });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      if (data.error === 'limit_cards') showError(t('errors.limitCards'));
+      else showError(t('errors.uploadFailed'));
+      return;
+    }
+    setFile(null);
+    if(fileInputRef.current) fileInputRef.current.value='';
+    setComment('');
+    setUploadGroups(['default']);
+    loadMyCards();
+    loadGroups();
+    setSnackOpen(true);
   };
 
   if (!user) {
@@ -400,8 +405,15 @@ function App() {
       <Box sx={{ p:2 }} hidden={tab!==2}>
         <Box sx={{ display:'flex', alignItems:'center', mb:2 }}>
           <TextField label={t('pages.main.newGroup')} size="small" sx={{ mr:2 }} value={newGroupName} onChange={e=>setNewGroupName(e.target.value)} />
-          <Button variant="contained" onClick={()=>{
-            fetch(`${API_URL}/groups`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:newGroupName||t('pages.main.groupDefault')})}).then(()=>{setNewGroupName(''); loadGroups();});
+          <Button variant="contained" onClick={async ()=>{
+            const res = await fetch(`${API_URL}/groups`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:newGroupName||t('pages.main.groupDefault')})});
+            if(!res.ok){
+              const data = await res.json().catch(()=>({}));
+              if(data.error==='limit_groups') showError(t('errors.limitGroups'));
+              return;
+            }
+            setNewGroupName('');
+            loadGroups();
           }}>{t('pages.main.addButton')}</Button>
         </Box>
         {groups.map(g=> (
@@ -502,8 +514,15 @@ function App() {
           </Stack>
           <Box sx={{ textAlign:'right' }}>
             <Button onClick={()=>setShareGroup(null)} sx={{ mr:1 }}>{t('pages.main.cancelButton')}</Button>
-            <Button variant="contained" onClick={()=>{
-              fetch(`${API_URL}/groups/${shareGroup.id}/emails`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({emails:shareEmails})}).then(()=>{ loadGroups(); setShareGroup(null);});
+            <Button variant="contained" onClick={async ()=>{
+              const res = await fetch(`${API_URL}/groups/${shareGroup.id}/emails`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({emails:shareEmails})});
+              if(!res.ok){
+                const data = await res.json().catch(()=>({}));
+                if(data.error==='limit_emails') showError(t('errors.limitEmails'));
+                return;
+              }
+              loadGroups();
+              setShareGroup(null);
             }}>{t('pages.main.saveButton')}</Button>
           </Box>
         </DialogContent>

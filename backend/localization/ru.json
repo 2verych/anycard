@@ -40,6 +40,10 @@
     "nameRequired": "Требуется имя",
     "invalidChars": "Недопустимые символы",
     "nameUnique": "Имя должно быть уникальным",
-    "deleteFailed": "Ошибка удаления"
+    "deleteFailed": "Ошибка удаления",
+    "limitCards": "Превышен лимит карт",
+    "limitGroups": "Превышен лимит групп",
+    "limitEmails": "Слишком много адресов",
+    "uploadFailed": "Ошибка загрузки"
   }
 }

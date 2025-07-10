@@ -23,6 +23,14 @@ function App() {
   const [shareEmails, setShareEmails] = useState([]);
   const [shareInput, setShareInput] = useState('');
   const [sharedGroups, setSharedGroups] = useState([]);
+  const [multiSelect, setMultiSelect] = useState(false);
+  const [selectedCards, setSelectedCards] = useState([]);
+  const holdTimer = useRef(null);
+  const holdTriggered = useRef(false);
+  const [confirmDeleteCards, setConfirmDeleteCards] = useState(null);
+  const [confirmDeleteGroup, setConfirmDeleteGroup] = useState(null);
+  const [confirmDeleteShared, setConfirmDeleteShared] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
   const fileInputRef = useRef(null);
   const [{ isOver }, drop] = useDrop(() => ({
     accept: [NativeTypes.FILE],
@@ -95,6 +103,27 @@ function App() {
     fetch(`${API_URL}/shared-groups`, { credentials:'include' })
       .then(res => res.json())
       .then(setSharedGroups);
+  };
+
+  const showError = (msg) => { setErrorMsg(msg); };
+
+  const startHold = (card) => {
+    holdTriggered.current = false;
+    clearTimeout(holdTimer.current);
+    holdTimer.current = setTimeout(() => {
+      holdTriggered.current = true;
+      setMultiSelect(true);
+      setSelectedCards([card.filename]);
+    }, 500);
+  };
+
+  const cancelHold = () => {
+    clearTimeout(holdTimer.current);
+  };
+
+  const toggleCard = (file) => {
+    if (selectedCards.includes(file)) setSelectedCards(selectedCards.filter(f => f !== file));
+    else setSelectedCards([...selectedCards, file]);
   };
 
 
@@ -185,6 +214,16 @@ function App() {
             })()}
           </Select>
         </FormControl>
+        {multiSelect && (
+          <Box sx={{ mb:2, display:'flex', gap:1 }}>
+            <Button variant="contained" color="error" disabled={selectedCards.length===0} onClick={()=>setConfirmDeleteCards(selectedCards)}>
+              Delete
+            </Button>
+            <Button variant="outlined" onClick={()=>{ setMultiSelect(false); setSelectedCards([]); }}>
+              Cancel
+            </Button>
+          </Box>
+        )}
         {cards.length === 0 && <Typography>No cards uploaded.</Typography>}
         <Grid container spacing={2}>
           {cards.filter(c=>{
@@ -199,8 +238,10 @@ function App() {
                 component="img"
                 src={`${API_URL}${card.preview}`}
                 alt="card"
-                sx={{ width: config.previewSize, height: config.previewSize, objectFit: 'cover', cursor: 'pointer', borderRadius:2 }}
-                onClick={() => setDialogCard(card)}
+                sx={{ width: config.previewSize, height: config.previewSize, objectFit: 'cover', cursor: 'pointer', borderRadius:2, boxShadow: selectedCards.includes(card.filename)?'0 0 0 3px #1976d2':'none', opacity: multiSelect && !selectedCards.includes(card.filename)?0.7:1 }}
+                onPointerDown={()=>startHold(card)}
+                onPointerUp={()=>{ cancelHold(); if(multiSelect){ toggleCard(card.filename); } else if(!holdTriggered.current){ setDialogCard(card); } }}
+                onPointerLeave={cancelHold}
               />
             </Grid>
           ))}
@@ -269,9 +310,9 @@ function App() {
                   <Button size="small" onClick={()=>{
                     const name = g.name.trim();
                     const invalid = /[<>\\|'"$%@#]/.test(name);
-                    if(!name){ alert('Name required'); return; }
-                    if(invalid){ alert('Invalid characters'); return; }
-                    if(groups.some(gr=>gr.id!==g.id && gr.name.trim()===name)) { alert('Name must be unique'); return; }
+                    if(!name){ showError('Name required'); return; }
+                    if(invalid){ showError('Invalid characters'); return; }
+                    if(groups.some(gr=>gr.id!==g.id && gr.name.trim()===name)) { showError('Name must be unique'); return; }
                     fetch(`${API_URL}/groups/${g.id}`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})}).then(()=>{
                       setGroups(groups.map(gr=>gr.id===g.id?{...gr, originalName:name}:gr));
                       loadGroups();
@@ -279,7 +320,7 @@ function App() {
                   }}>Save</Button>
                 )}
                 <Button size="small" color="error" onClick={()=>{
-                  fetch(`${API_URL}/groups/${g.id}`, {method:'DELETE', credentials:'include'}).then(()=>loadGroups());
+                  setConfirmDeleteGroup(g.id);
                 }}>Delete</Button>
               </>
             )}
@@ -300,7 +341,7 @@ function App() {
                     fetch(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/show`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({show:e.target.checked})}).then(loadSharedGroups);
                   }} />} label="Show in my groups" />
                   <Button size="small" color="error" onClick={()=>{
-                    fetch(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/delete`, {method:'POST', credentials:'include'}).then(()=>{ loadSharedGroups(); });
+                    setConfirmDeleteShared({owner: sg.owner, id: sg.id});
                   }}>Delete</Button>
                 </Box>
               </Box>
@@ -374,12 +415,53 @@ function App() {
                   />
                 ))}
               </Stack>
+              <Button variant="contained" color="error" sx={{ mt:2 }} onClick={()=>setConfirmDeleteCards([dialogCard.filename])}>Delete</Button>
             </>
           )}
         </DialogContent>
       </Dialog>
+      <Dialog open={!!confirmDeleteCards} onClose={()=>setConfirmDeleteCards(null)}>
+        <DialogContent>
+          <Typography sx={{ mb:2 }}>Delete selected card(s)?</Typography>
+          <Box sx={{ textAlign:'right' }}>
+            <Button onClick={()=>setConfirmDeleteCards(null)} sx={{ mr:1 }}>Cancel</Button>
+            <Button variant="contained" color="error" onClick={()=>{
+              const files = Array.isArray(confirmDeleteCards) ? confirmDeleteCards : [];
+              Promise.all(files.map(f=>fetch(`${API_URL}/cards/${f}`, {method:'DELETE', credentials:'include'})))
+                .then(()=>{ loadMyCards(); loadGroups(); })
+                .catch(()=>{ showError('Delete failed'); })
+                .finally(()=>{ setConfirmDeleteCards(null); setSelectedCards([]); setMultiSelect(false); });
+            }}>Delete</Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!confirmDeleteGroup} onClose={()=>setConfirmDeleteGroup(null)}>
+        <DialogContent>
+          <Typography sx={{ mb:2 }}>Delete this group?</Typography>
+          <Box sx={{ textAlign:'right' }}>
+            <Button onClick={()=>setConfirmDeleteGroup(null)} sx={{ mr:1 }}>Cancel</Button>
+            <Button variant="contained" color="error" onClick={()=>{
+              fetch(`${API_URL}/groups/${confirmDeleteGroup}`, {method:'DELETE', credentials:'include'}).then(()=>{ loadGroups(); setConfirmDeleteGroup(null); });
+            }}>Delete</Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!confirmDeleteShared} onClose={()=>setConfirmDeleteShared(null)}>
+        <DialogContent>
+          <Typography sx={{ mb:2 }}>Remove shared group?</Typography>
+          <Box sx={{ textAlign:'right' }}>
+            <Button onClick={()=>setConfirmDeleteShared(null)} sx={{ mr:1 }}>Cancel</Button>
+            <Button variant="contained" color="error" onClick={()=>{
+              fetch(`${API_URL}/shared-groups/${confirmDeleteShared?.owner}/${confirmDeleteShared?.id}/delete`, {method:'POST', credentials:'include'}).then(()=>{ loadSharedGroups(); setConfirmDeleteShared(null); });
+            }}>Delete</Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
       <Snackbar open={snackOpen} autoHideDuration={3000} onClose={() => setSnackOpen(false)}>
         <Alert severity="success" onClose={() => setSnackOpen(false)}>File uploaded</Alert>
+      </Snackbar>
+      <Snackbar open={!!errorMsg} autoHideDuration={4000} onClose={()=>setErrorMsg('')}>
+        <Alert severity="error" onClose={()=>setErrorMsg('')}>{errorMsg}</Alert>
       </Snackbar>
     </Box>
   );

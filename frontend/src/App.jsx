@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
-import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack } from '@mui/material';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, Slider } from '@mui/material';
+import Cropper from 'react-easy-crop';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -7,6 +8,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState(0);
   const [cards, setCards] = useState([]);
+  const [myCards, setMyCards] = useState([]);
   const [file, setFile] = useState(null);
   const [comment, setComment] = useState('');
   const [dialogCard, setDialogCard] = useState(null);
@@ -19,6 +21,11 @@ function App() {
   const [shareGroup, setShareGroup] = useState(null);
   const [shareEmails, setShareEmails] = useState([]);
   const [shareInput, setShareInput] = useState('');
+  const [sharedGroups, setSharedGroups] = useState([]);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const onCropComplete = useCallback((_, area) => setCroppedAreaPixels(area), []);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -34,14 +41,30 @@ function App() {
 
   useEffect(() => {
     if (user) {
-      loadCards();
+      loadMyCards();
       loadGroups();
+      loadSharedGroups();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const loadCards = () => {
+  useEffect(() => {
+    if (selectedGroup.startsWith('s:')) {
+      const [owner, gid] = selectedGroup.slice(2).split(':');
+      loadSharedCards(owner, gid);
+    } else {
+      setCards(myCards);
+    }
+  }, [selectedGroup]);
+
+  const loadMyCards = () => {
     fetch(`${API_URL}/cards`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => { setCards(data); setMyCards(data); });
+  };
+
+  const loadSharedCards = (owner, id) => {
+    fetch(`${API_URL}/shared-cards/${owner}/${id}`, { credentials:'include' })
       .then(res => res.json())
       .then(setCards);
   };
@@ -50,18 +73,55 @@ function App() {
     fetch(`${API_URL}/groups`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
-        setGroups(data);
+        setGroups(data.map(g => ({ ...g, originalName: g.name })));
         if (!data.find(g => g.id === selectedGroup)) {
           setSelectedGroup('default');
         }
       });
   };
 
-  const handleUpload = (e) => {
+  const loadSharedGroups = () => {
+    fetch(`${API_URL}/shared-groups`, { credentials:'include' })
+      .then(res => res.json())
+      .then(setSharedGroups);
+  };
+
+  const createImage = (url) => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.addEventListener('load', () => resolve(img));
+    img.addEventListener('error', (err) => reject(err));
+    img.src = url;
+  });
+
+  const getCroppedBlob = async () => {
+    if (!file || !croppedAreaPixels) return file;
+    const image = await createImage(URL.createObjectURL(file));
+    const canvas = document.createElement('canvas');
+    canvas.width = croppedAreaPixels.width;
+    canvas.height = croppedAreaPixels.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(
+      image,
+      croppedAreaPixels.x,
+      croppedAreaPixels.y,
+      croppedAreaPixels.width,
+      croppedAreaPixels.height,
+      0,
+      0,
+      croppedAreaPixels.width,
+      croppedAreaPixels.height
+    );
+    return new Promise(resolve => {
+      canvas.toBlob(b => resolve(new File([b], file.name, { type: 'image/jpeg' })), 'image/jpeg');
+    });
+  };
+
+  const handleUpload = async (e) => {
     e.preventDefault();
     if (!file) return;
+    const croppedFile = await getCroppedBlob();
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', croppedFile);
     formData.append('comment', comment);
     formData.append('groups', JSON.stringify(uploadGroups));
     fetch(`${API_URL}/upload`, {
@@ -73,7 +133,7 @@ function App() {
       if(fileInputRef.current) fileInputRef.current.value='';
       setComment('');
       setUploadGroups(['default']);
-      loadCards();
+      loadMyCards();
       loadGroups();
       setSnackOpen(true);
     });
@@ -106,19 +166,32 @@ function App() {
         <Tab label="Your Cards" />
         <Tab label="Upload" />
         <Tab label="Groups" />
+        <Tab label="Shared" />
       </Tabs>
       <Box sx={{ p:2 }} hidden={tab!==0}>
         <FormControl sx={{ mb:2, minWidth:200 }}>
           <InputLabel>Group</InputLabel>
           <Select value={selectedGroup} label="Group" onChange={e=>setSelectedGroup(e.target.value)}>
-            {groups.map(g=>(
+            {[
+              ...groups,
+              ...sharedGroups.filter(sg=>sg.showInMy).map(sg=>({
+                ...sg,
+                id:`s:${sg.owner}:${sg.id}`,
+              }))
+            ].map(g=>(
               <MenuItem key={g.id} value={g.id}>{g.name} ({g.count})</MenuItem>
             ))}
           </Select>
         </FormControl>
         {cards.length === 0 && <Typography>No cards uploaded.</Typography>}
         <Grid container spacing={2}>
-          {cards.filter(c=>selectedGroup==='all'?true:c.groups.includes(selectedGroup)).map((card, i) => (
+          {cards.filter(c=>{
+            if(selectedGroup==='all') return true;
+            if(selectedGroup.startsWith('s:')){
+              return true; // shared cards already filtered server-side
+            }
+            return c.groups.includes(selectedGroup);
+          }).map((card, i) => (
             <Grid item key={i}>
               <Box
                 component="img"
@@ -135,13 +208,31 @@ function App() {
         <form onSubmit={handleUpload}>
           <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={e=>setFile(e.target.files[0])} />
           <Box
-            onClick={()=>fileInputRef.current?.click()}
+            onClick={()=>{ if(file){ setFile(null); setCroppedAreaPixels(null); if(fileInputRef.current) fileInputRef.current.value=''; } else { fileInputRef.current?.click(); } }}
             onDragOver={e=>e.preventDefault()}
             onDrop={e=>{ e.preventDefault(); if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}
-            sx={{ width:'100%', height:'25vh', border:'2px dashed gray', mb:2, display:'flex', justifyContent:'center', alignItems:'center', cursor:'pointer' }}
+            sx={{ width:'100%', height:'25vh', border:'2px dashed gray', mb:2, display:'flex', justifyContent:'center', alignItems:'center', position:'relative', overflow:'hidden', cursor:'pointer' }}
           >
-            <Typography color="primary" sx={{ textDecoration:'underline' }}>Drag and drop or click to choose file...</Typography>
+            {file ? (
+              <>
+                <Cropper
+                  image={URL.createObjectURL(file)}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                />
+                <Typography sx={{ position:'absolute', bottom:4, left:4, background:'rgba(255,255,255,0.7)', px:1, borderRadius:1 }} color="primary" >Reset selected file</Typography>
+              </>
+            ) : (
+              <Typography color="primary" sx={{ textDecoration:'underline' }}>Drag and drop or click to choose file...</Typography>
+            )}
           </Box>
+          {file && (
+            <Slider value={zoom} min={1} max={3} step={0.1} onChange={(_,v)=>setZoom(v)} sx={{ mb:2 }} />
+          )}
           <TextField label="Comment" multiline fullWidth value={comment} onChange={e=>setComment(e.target.value)} sx={{ mb:2 }} />
           <FormGroup row sx={{ my:1 }}>
             {groups.map(g=>(
@@ -167,19 +258,37 @@ function App() {
             <Button size="small" onClick={()=>{ setShareGroup(g); setShareEmails(g.emails||[]); setShareInput(''); }}>Share</Button>
             {g.id!=='default' && (
               <>
-                <Button size="small" onClick={()=>{
-                  const name = g.name.trim();
-                  const invalid = /[<>\\|'"$%@#]/.test(name);
-                  if(!name){ alert('Name required'); return; }
-                  if(invalid){ alert('Invalid characters'); return; }
-                  if(groups.some(gr=>gr.id!==g.id && gr.name.trim()===name)) { alert('Name must be unique'); return; }
-                  fetch(`${API_URL}/groups/${g.id}`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})}).then(()=>loadGroups());
-                }}>Save</Button>
+                {g.name !== g.originalName && (
+                  <Button size="small" onClick={()=>{
+                    const name = g.name.trim();
+                    const invalid = /[<>\\|'"$%@#]/.test(name);
+                    if(!name){ alert('Name required'); return; }
+                    if(invalid){ alert('Invalid characters'); return; }
+                    if(groups.some(gr=>gr.id!==g.id && gr.name.trim()===name)) { alert('Name must be unique'); return; }
+                    fetch(`${API_URL}/groups/${g.id}`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})}).then(()=>{
+                      setGroups(groups.map(gr=>gr.id===g.id?{...gr, originalName:name}:gr));
+                      loadGroups();
+                    });
+                  }}>Save</Button>
+                )}
                 <Button size="small" color="error" onClick={()=>{
                   fetch(`${API_URL}/groups/${g.id}`, {method:'DELETE', credentials:'include'}).then(()=>loadGroups());
                 }}>Delete</Button>
               </>
             )}
+          </Box>
+        ))}
+      </Box>
+      <Box sx={{ p:2 }} hidden={tab!==3}>
+        {sharedGroups.map(sg => (
+          <Box key={`${sg.owner}_${sg.id}`} sx={{ mb:1, display:'flex', alignItems:'center' }}>
+            <Typography sx={{ mr:2 }}>{sg.name} ({sg.count})</Typography>
+            <FormControlLabel control={<Checkbox checked={sg.showInMy} onChange={e=>{
+              fetch(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/show`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({show:e.target.checked})}).then(loadSharedGroups);
+            }} />} label="Show in my groups" />
+            <Button size="small" color="error" onClick={()=>{
+              fetch(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/delete`, {method:'POST', credentials:'include'}).then(()=>{ loadSharedGroups(); });
+            }}>Delete</Button>
           </Box>
         ))}
       </Box>
@@ -236,7 +345,7 @@ function App() {
                     clickable={g.id!=='default'}
                     onClick={g.id==='default'?undefined:()=>{
                       fetch(`${API_URL}/cards/${dialogCard.filename}/groups/${g.id}`, {method:'POST', credentials:'include'}).then(()=>{
-                        loadCards();
+                        loadMyCards();
                         loadGroups();
                         setDialogCard({...dialogCard, groups: dialogCard.groups.includes(g.id)? dialogCard.groups.filter(x=>x!==g.id):[...dialogCard.groups,g.id]});
                       });

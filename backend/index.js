@@ -61,6 +61,36 @@ function saveMeta(dir, file, meta) {
   fs.writeFileSync(path.join(dir, 'meta', file + '.json'), JSON.stringify(meta, null, 2));
 }
 
+function sharedStatePath(dir) {
+  return path.join(dir, 'shared.json');
+}
+function loadSharedState(dir) {
+  const file = sharedStatePath(dir);
+  if (!fs.existsSync(file)) return { hidden: [], showInMy: [] };
+  return JSON.parse(fs.readFileSync(file));
+}
+function saveSharedState(dir, state) {
+  fs.writeFileSync(sharedStatePath(dir), JSON.stringify(state, null, 2));
+}
+
+function rejectionPath(dir) {
+  return path.join(dir, 'rejections.json');
+}
+function loadRejections(dir) {
+  const file = rejectionPath(dir);
+  if (!fs.existsSync(file)) return {};
+  try { return JSON.parse(fs.readFileSync(file)); } catch { return {}; }
+}
+function saveRejections(dir, data) {
+  fs.writeFileSync(rejectionPath(dir), JSON.stringify(data, null, 2));
+}
+
+function allUserDirs() {
+  const base = path.join(__dirname, 'uploads');
+  if (!fs.existsSync(base)) return [];
+  return fs.readdirSync(base);
+}
+
 app.use(morgan('dev'));
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -164,6 +194,7 @@ app.get('/cards', ensureAuthenticated, (req, res) => {
           preview: `/uploads/${email}/previews/${f}`,
           comment: meta.comment,
           groups: meta.groups,
+          owner: email,
         };
       });
     res.json(result);
@@ -174,6 +205,7 @@ app.get('/groups', ensureAuthenticated, (req, res) => {
   const userDir = getUserDir(req);
   ensureDirs(userDir);
   const groups = loadGroups(userDir);
+  const rejections = loadRejections(userDir);
   const counts = Object.fromEntries(groups.map(g => [g.id, 0]));
   fs.readdir(userDir, (err, files) => {
     if (!err) {
@@ -183,7 +215,7 @@ app.get('/groups', ensureAuthenticated, (req, res) => {
           meta.groups.forEach(g => { if (counts[g] !== undefined) counts[g]++; });
         });
     }
-    res.json(groups.map(g => ({ id: g.id, name: g.name, emails: g.emails || [], count: counts[g.id] || 0 })));
+    res.json(groups.map(g => ({ id: g.id, name: g.name, emails: g.emails || [], rejected: rejections[g.id] || [], count: counts[g.id] || 0 })));
   });
 });
 
@@ -223,6 +255,86 @@ app.put('/groups/:id/emails', ensureAuthenticated, (req, res) => {
   const groups = loadGroups(userDir).map(g => g.id === req.params.id ? { ...g, emails: req.body.emails || [] } : g);
   saveGroups(userDir, groups);
   res.json({ success: true });
+});
+
+app.get('/shared-groups', ensureAuthenticated, (req, res) => {
+  const email = req.user.emails[0].value;
+  const myDir = getUserDir(req);
+  ensureDirs(myDir);
+  const state = loadSharedState(myDir);
+  const result = [];
+  for (const dir of allUserDirs()) {
+    if (dir === email) continue;
+    const ownerDir = path.join(__dirname, 'uploads', dir);
+    const groups = loadGroups(ownerDir);
+    const counts = Object.fromEntries(groups.map(g => [g.id, 0]));
+    fs.readdirSync(ownerDir).forEach(f => {
+      if (f === 'previews' || f === 'meta' || f.endsWith('.json')) return;
+      const meta = loadMeta(ownerDir, f);
+      meta.groups.forEach(g => { if (counts[g] !== undefined) counts[g]++; });
+    });
+    const rejected = loadRejections(ownerDir);
+    groups.forEach(g => {
+      if ((g.emails || []).includes(email)) {
+        const key = dir + '/' + g.id;
+        if (!state.hidden.includes(key)) {
+          result.push({ owner: dir, id: g.id, name: g.name, count: counts[g.id] || 0, showInMy: state.showInMy.includes(key), rejected: (rejected[g.id] || []).includes(email) });
+        }
+      }
+    });
+  }
+  res.json(result);
+});
+
+app.post('/shared-groups/:owner/:id/delete', ensureAuthenticated, (req, res) => {
+  const email = req.user.emails[0].value;
+  const myDir = getUserDir(req);
+  const state = loadSharedState(myDir);
+  const key = req.params.owner + '/' + req.params.id;
+  if (!state.hidden.includes(key)) state.hidden.push(key);
+  saveSharedState(myDir, state);
+  const ownerDir = path.join(__dirname, 'uploads', req.params.owner);
+  ensureDirs(ownerDir);
+  const rej = loadRejections(ownerDir);
+  if (!rej[req.params.id]) rej[req.params.id] = [];
+  if (!rej[req.params.id].includes(email)) rej[req.params.id].push(email);
+  saveRejections(ownerDir, rej);
+  res.json({ success: true });
+});
+
+app.post('/shared-groups/:owner/:id/show', ensureAuthenticated, (req, res) => {
+  const myDir = getUserDir(req);
+  const state = loadSharedState(myDir);
+  const key = req.params.owner + '/' + req.params.id;
+  state.showInMy = state.showInMy.filter(x => x !== key);
+  if (req.body.show) state.showInMy.push(key);
+  saveSharedState(myDir, state);
+  res.json({ success: true });
+});
+
+app.get('/shared-cards/:owner/:group', ensureAuthenticated, (req, res) => {
+  const email = req.user.emails[0].value;
+  const ownerDir = path.join(__dirname, 'uploads', req.params.owner);
+  if (!fs.existsSync(ownerDir)) return res.json([]);
+  const groups = loadGroups(ownerDir);
+  const g = groups.find(x => x.id === req.params.group);
+  if (!g || !(g.emails || []).includes(email)) return res.json([]);
+  const files = fs.readdirSync(ownerDir).filter(f => !f.endsWith('.txt') && f !== 'previews' && f !== 'meta' && !f.endsWith('.json'));
+  const result = files.filter(f => {
+    const meta = loadMeta(ownerDir, f);
+    return meta.groups.includes(req.params.group);
+  }).map(f => {
+    const meta = loadMeta(ownerDir, f);
+    return {
+      filename: f,
+      original: `/uploads/${req.params.owner}/${f}`,
+      preview: `/uploads/${req.params.owner}/previews/${f}`,
+      comment: meta.comment,
+      groups: meta.groups,
+      owner: req.params.owner,
+    };
+  });
+  res.json(result);
 });
 
 app.post('/cards/:file/groups/:groupId', ensureAuthenticated, (req, res) => {

@@ -33,11 +33,12 @@ function groupsPath(dir) {
 function loadGroups(dir) {
   const file = groupsPath(dir);
   if (!fs.existsSync(file)) {
-    const data = { groups: [{ id: 'default', name: 'Мои карты' }] };
+    const data = { groups: [{ id: 'default', name: 'Мои карты', emails: [] }] };
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
     return data.groups;
   }
-  return JSON.parse(fs.readFileSync(file)).groups;
+  const groups = JSON.parse(fs.readFileSync(file)).groups;
+  return groups.map(g => ({ emails: [], ...g }));
 }
 
 function saveGroups(dir, groups) {
@@ -182,7 +183,7 @@ app.get('/groups', ensureAuthenticated, (req, res) => {
           meta.groups.forEach(g => { if (counts[g] !== undefined) counts[g]++; });
         });
     }
-    res.json(groups.map(g => ({ id: g.id, name: g.name, count: counts[g.id] || 0 })));
+    res.json(groups.map(g => ({ id: g.id, name: g.name, emails: g.emails || [], count: counts[g.id] || 0 })));
   });
 });
 
@@ -191,9 +192,9 @@ app.post('/groups', ensureAuthenticated, (req, res) => {
   const groups = loadGroups(userDir);
   const id = Date.now().toString();
   const name = req.body.name || 'Group';
-  groups.push({ id, name });
+  groups.push({ id, name, emails: [] });
   saveGroups(userDir, groups);
-  res.json({ id, name });
+  res.json({ id, name, emails: [] });
 });
 
 app.put('/groups/:id', ensureAuthenticated, (req, res) => {
@@ -214,6 +215,13 @@ app.delete('/groups/:id', ensureAuthenticated, (req, res) => {
       saveMeta(userDir, f.replace('.json',''), meta);
     }
   });
+  res.json({ success: true });
+});
+
+app.put('/groups/:id/emails', ensureAuthenticated, (req, res) => {
+  const userDir = getUserDir(req);
+  const groups = loadGroups(userDir).map(g => g.id === req.params.id ? { ...g, emails: req.body.emails || [] } : g);
+  saveGroups(userDir, groups);
   res.json({ success: true });
 });
 

@@ -14,6 +14,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 const PREVIEW_SIZE = parseInt(process.env.PREVIEW_SIZE) || 128;
+const MAX_CARDS = parseInt(process.env.MAX_CARDS) || 100;
+const MAX_GROUPS = parseInt(process.env.MAX_GROUPS) || 10;
+const MAX_SHARE_EMAILS = parseInt(process.env.MAX_SHARE_EMAILS) || 10;
 
 function loadLocalization() {
   const dir = path.join(__dirname, 'localization');
@@ -205,6 +208,11 @@ app.post('/upload', ensureAuthenticated, upload.single('file'), async (req, res)
     const userDir = getUserDir(req);
     ensureDirs(userDir);
 
+    const existing = fs.readdirSync(userDir).filter(f => !f.endsWith('.txt') && f !== 'previews' && f !== 'meta' && !f.endsWith('.json'));
+    if (existing.length >= MAX_CARDS) {
+      return res.status(400).json({ error: 'limit_cards' });
+    }
+
     const comment = req.body.comment || '';
     let groups = [];
     try { groups = JSON.parse(req.body.groups); } catch {}
@@ -273,6 +281,9 @@ app.get('/groups', ensureAuthenticated, (req, res) => {
 app.post('/groups', ensureAuthenticated, (req, res) => {
   const userDir = getUserDir(req);
   const groups = loadGroups(userDir);
+  if (groups.length >= MAX_GROUPS) {
+    return res.status(400).json({ error: 'limit_groups' });
+  }
   const id = Date.now().toString();
   const name = req.body.name || 'Group';
   groups.push({ id, name, emails: [] });
@@ -303,7 +314,11 @@ app.delete('/groups/:id', ensureAuthenticated, (req, res) => {
 
 app.put('/groups/:id/emails', ensureAuthenticated, (req, res) => {
   const userDir = getUserDir(req);
-  const groups = loadGroups(userDir).map(g => g.id === req.params.id ? { ...g, emails: req.body.emails || [] } : g);
+  const emails = req.body.emails || [];
+  if (emails.length > MAX_SHARE_EMAILS) {
+    return res.status(400).json({ error: 'limit_emails' });
+  }
+  const groups = loadGroups(userDir).map(g => g.id === req.params.id ? { ...g, emails } : g);
   saveGroups(userDir, groups);
   res.json({ success: true });
 });

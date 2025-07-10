@@ -10,23 +10,16 @@ const LocalizationContext = createContext({
 
 export function LocalizationProvider({ children }) {
   const [data, setData] = useState({});
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState(() => localStorage.getItem('lang') || 'en');
 
   useEffect(() => {
     const saved = localStorage.getItem('lang');
-    if (saved) setLang(saved);
     fetch(`${API_URL}/localization`)
       .then(res => res.json())
       .then(obj => {
         setData(obj);
-        if (saved && obj[saved]) {
-          setLang(saved);
-        } else if (obj['en']) {
-          setLang('en');
-        } else {
-          const first = Object.keys(obj)[0];
-          if (first) setLang(first);
-        }
+        const candidate = saved && obj[saved] ? saved : obj['en'] ? 'en' : Object.keys(obj)[0];
+        if (candidate) setLang(candidate);
       });
   }, []);
 

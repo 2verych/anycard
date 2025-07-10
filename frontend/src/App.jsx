@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, Slider } from '@mui/material';
-import Cropper from 'react-easy-crop';
+import { useEffect, useState, useRef } from 'react';
+import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, ListSubheader, Avatar } from '@mui/material';
+import { useDrop } from 'react-dnd';
+import { NativeTypes } from 'react-dnd-html5-backend';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -22,11 +23,15 @@ function App() {
   const [shareEmails, setShareEmails] = useState([]);
   const [shareInput, setShareInput] = useState('');
   const [sharedGroups, setSharedGroups] = useState([]);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const onCropComplete = useCallback((_, area) => setCroppedAreaPixels(area), []);
   const fileInputRef = useRef(null);
+  const [{ isOver }, drop] = useDrop(() => ({
+    accept: [NativeTypes.FILE],
+    drop: (item) => {
+      const f = item.files?.[0];
+      if (f) setFile(f);
+    },
+    collect: monitor => ({ isOver: monitor.isOver() }),
+  }));
 
   useEffect(() => {
     fetch(`${API_URL}/config`)
@@ -80,50 +85,27 @@ function App() {
       });
   };
 
+  useEffect(() => {
+    if (user && tab !== 2) {
+      loadGroups();
+    }
+  }, [tab]);
+
   const loadSharedGroups = () => {
     fetch(`${API_URL}/shared-groups`, { credentials:'include' })
       .then(res => res.json())
       .then(setSharedGroups);
   };
 
-  const createImage = (url) => new Promise((resolve, reject) => {
-    const img = new Image();
-    img.addEventListener('load', () => resolve(img));
-    img.addEventListener('error', (err) => reject(err));
-    img.src = url;
-  });
-
-  const getCroppedBlob = async () => {
-    if (!file || !croppedAreaPixels) return file;
-    const image = await createImage(URL.createObjectURL(file));
-    const canvas = document.createElement('canvas');
-    canvas.width = croppedAreaPixels.width;
-    canvas.height = croppedAreaPixels.height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(
-      image,
-      croppedAreaPixels.x,
-      croppedAreaPixels.y,
-      croppedAreaPixels.width,
-      croppedAreaPixels.height,
-      0,
-      0,
-      croppedAreaPixels.width,
-      croppedAreaPixels.height
-    );
-    return new Promise(resolve => {
-      canvas.toBlob(b => resolve(new File([b], file.name, { type: 'image/jpeg' })), 'image/jpeg');
-    });
-  };
 
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!file) return;
-    const croppedFile = await getCroppedBlob();
     const formData = new FormData();
-    formData.append('file', croppedFile);
+    formData.append('file', file);
     formData.append('comment', comment);
-    formData.append('groups', JSON.stringify(uploadGroups));
+    const groupsForUpload = uploadGroups.includes('default') ? uploadGroups : [...uploadGroups, 'default'];
+    formData.append('groups', JSON.stringify(groupsForUpload));
     fetch(`${API_URL}/upload`, {
       method: 'POST',
       credentials: 'include',
@@ -159,6 +141,10 @@ function App() {
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>AnyCard</Typography>
+          <Box sx={{ display:'flex', alignItems:'center', mr:2 }}>
+            <Avatar src={user.photos?.[0]?.value} sx={{ width:32, height:32, mr:1 }} />
+            <Typography>{user.displayName}</Typography>
+          </Box>
           <Button color="inherit" href={`${API_URL}/auth/google`}>Change User</Button>
         </Toolbar>
       </AppBar>
@@ -172,15 +158,31 @@ function App() {
         <FormControl sx={{ mb:2, minWidth:200 }}>
           <InputLabel>Group</InputLabel>
           <Select value={selectedGroup} label="Group" onChange={e=>setSelectedGroup(e.target.value)}>
-            {[
-              ...groups,
-              ...sharedGroups.filter(sg=>sg.showInMy).map(sg=>({
-                ...sg,
-                id:`s:${sg.owner}:${sg.id}`,
-              }))
-            ].map(g=>(
-              <MenuItem key={g.id} value={g.id}>{g.name} ({g.count})</MenuItem>
-            ))}
+            {(() => {
+              const myGroups = [...groups].sort((a,b)=>{
+                if(a.id==='default') return -1;
+                if(b.id==='default') return 1;
+                return 0;
+              });
+              const shared = sharedGroups.filter(sg=>sg.showInMy).reduce((acc, sg)=>{
+                const key = sg.owner;
+                if(!acc[key]) acc[key]=[];
+                acc[key].push({ ...sg, id:`s:${sg.owner}:${sg.id}` });
+                return acc;
+              }, {});
+              const items = [
+                ...myGroups.map(g => (
+                  <MenuItem key={g.id} value={g.id}>{g.name} ({g.count})</MenuItem>
+                )),
+                ...Object.entries(shared).flatMap(([owner, arr]) => [
+                  <ListSubheader key={owner}>{owner}</ListSubheader>,
+                  ...arr.map(g => (
+                    <MenuItem key={g.id} value={g.id}>{g.name} ({g.count})</MenuItem>
+                  ))
+                ])
+              ];
+              return items;
+            })()}
           </Select>
         </FormControl>
         {cards.length === 0 && <Typography>No cards uploaded.</Typography>}
@@ -208,38 +210,41 @@ function App() {
         <form onSubmit={handleUpload}>
           <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={e=>setFile(e.target.files[0])} />
           <Box
-            onClick={file ? undefined : ()=>fileInputRef.current?.click()}
-            onDragOver={e=>e.preventDefault()}
-            onDrop={e=>{ e.preventDefault(); if(e.dataTransfer.files && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }}
-            sx={{ width:'100%', height:'25vh', border:'2px dashed gray', mb:1, display:'flex', justifyContent:'center', alignItems:'center', position:'relative', overflow:'hidden', cursor: file ? 'default' : 'pointer' }}
+            ref={drop}
+            onClick={file ? undefined : () => fileInputRef.current?.click()}
+            sx={{ width:'100%', height:'50vh', border:'2px dashed gray', mb:1, display:'flex', justifyContent:'center', alignItems:'center', position:'relative', overflow:'hidden', cursor: file ? 'default' : 'pointer', borderColor: isOver ? 'primary.main' : 'gray' }}
           >
             {file ? (
-              <Cropper
-                image={URL.createObjectURL(file)}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-              />
+              <Box component="img" src={URL.createObjectURL(file)} alt="preview" sx={{ width:'100%', height:'100%', objectFit:'contain' }} />
             ) : (
-              <Typography color="primary" sx={{ textDecoration:'underline' }}>Drag and drop or click to choose file...</Typography>
+              <Typography color="primary" sx={{ textDecoration:'underline' }}>Click or drop a file...</Typography>
             )}
           </Box>
           {file && (
-            <Typography onClick={()=>{ setFile(null); setCroppedAreaPixels(null); if(fileInputRef.current) fileInputRef.current.value=''; }} color="primary" sx={{ cursor:'pointer', mb:1, textDecoration:'underline' }}>Reset selected file</Typography>
-          )}
-          {file && (
-            <Slider value={zoom} min={1} max={3} step={0.1} onChange={(_,v)=>setZoom(v)} sx={{ mb:2 }} />
+            <Typography onClick={()=>{ setFile(null); if(fileInputRef.current) fileInputRef.current.value=''; }} color="primary" sx={{ cursor:'pointer', mb:1, textDecoration:'underline' }}>Reset selected file</Typography>
           )}
           <TextField label="Comment" multiline fullWidth value={comment} onChange={e=>setComment(e.target.value)} sx={{ mb:2 }} />
           <FormGroup row sx={{ my:1 }}>
-            {groups.map(g=>(
-              <FormControlLabel key={g.id} control={<Checkbox checked={uploadGroups.includes(g.id)} onChange={e=>{
-                if(e.target.checked) setUploadGroups([...uploadGroups,g.id]); else setUploadGroups(uploadGroups.filter(x=>x!==g.id));
-              }} />} label={g.name} />
-            ))}
+            {groups.map(g=>{
+              const checked = uploadGroups.includes(g.id);
+              const disabled = g.id === 'default';
+              return (
+                <FormControlLabel
+                  key={g.id}
+                  control={
+                    <Checkbox
+                      checked={disabled || checked}
+                      disabled={disabled}
+                      onChange={e=>{
+                        if(e.target.checked) setUploadGroups(Array.from(new Set([...uploadGroups,g.id])));
+                        else setUploadGroups(uploadGroups.filter(x=>x!==g.id));
+                      }}
+                    />
+                  }
+                  label={g.name}
+                />
+              );
+            })}
           </FormGroup>
           <Button type="submit" variant="contained">Upload</Button>
         </form>
@@ -255,7 +260,9 @@ function App() {
           <Box key={g.id} sx={{ mb:1, display:'flex', alignItems:'center' }}>
             <TextField size="small" value={g.name} onChange={e=>setGroups(groups.map(gr=>gr.id===g.id?{...gr,name:e.target.value}:gr))} sx={{ mr:2 }} />
             <Typography sx={{ mr:2 }}>({g.count})</Typography>
-            <Button size="small" onClick={()=>{ setShareGroup(g); setShareEmails(g.emails||[]); setShareInput(''); }}>Share</Button>
+            <Button size="small" onClick={()=>{ setShareGroup(g); setShareEmails(g.emails||[]); setShareInput(''); }}>
+              Share ({g.emails?.length || 0})
+            </Button>
             {g.id!=='default' && (
               <>
                 {g.name !== g.originalName && (
@@ -280,18 +287,24 @@ function App() {
         ))}
       </Box>
       <Box sx={{ p:2 }} hidden={tab!==3}>
-        {sharedGroups.map(sg => (
-          <Box key={`${sg.owner}_${sg.id}`} sx={{ mb:1 }}>
-            <Box sx={{ display:'flex', alignItems:'center' }}>
-              <Typography sx={{ mr:2 }}>{sg.name} ({sg.count})</Typography>
-              <FormControlLabel control={<Checkbox checked={sg.showInMy} onChange={e=>{
-                fetch(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/show`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({show:e.target.checked})}).then(loadSharedGroups);
-              }} />} label="Show in my groups" />
-              <Button size="small" color="error" onClick={()=>{
-                fetch(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/delete`, {method:'POST', credentials:'include'}).then(()=>{ loadSharedGroups(); });
-              }}>Delete</Button>
-            </Box>
-            <Typography variant="caption" color="text.secondary" sx={{ ml:1 }}>{sg.owner}</Typography>
+        {Object.entries(sharedGroups.reduce((acc, g)=>{
+          if(!acc[g.owner]) acc[g.owner]=[]; acc[g.owner].push(g); return acc;
+        }, {})).map(([owner, arr])=>(
+          <Box key={owner} sx={{ mb:2 }}>
+            <Typography sx={{ fontWeight:'bold', mb:1 }}>{owner}</Typography>
+            {arr.map(sg => (
+              <Box key={`${sg.owner}_${sg.id}`} sx={{ mb:1 }}>
+                <Box sx={{ display:'flex', alignItems:'center' }}>
+                  <Typography sx={{ mr:2 }}>{sg.name} ({sg.count})</Typography>
+                  <FormControlLabel control={<Checkbox checked={sg.showInMy} onChange={e=>{
+                    fetch(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/show`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({show:e.target.checked})}).then(loadSharedGroups);
+                  }} />} label="Show in my groups" />
+                  <Button size="small" color="error" onClick={()=>{
+                    fetch(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/delete`, {method:'POST', credentials:'include'}).then(()=>{ loadSharedGroups(); });
+                  }}>Delete</Button>
+                </Box>
+              </Box>
+            ))}
           </Box>
         ))}
       </Box>

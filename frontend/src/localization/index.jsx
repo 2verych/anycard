@@ -19,7 +19,11 @@ export function LocalizationProvider({ children }) {
       .then(res => res.json())
       .then(obj => {
         setData(obj);
-        if (!obj[saved]) {
+        if (saved && obj[saved]) {
+          setLang(saved);
+        } else if (obj['en']) {
+          setLang('en');
+        } else {
           const first = Object.keys(obj)[0];
           if (first) setLang(first);
         }

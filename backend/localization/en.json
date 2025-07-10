@@ -3,9 +3,9 @@
   "defaultGroupName": "My Cards",
   "pages": {
     "main": {
-      "appName": "AnyCard",
+      "appName": "Sharacard",
       "loginButton": "Login with Google",
-      "changeUser": "Change User",
+      "changeUser": "Sign Out",
       "tabs": {
         "yourCards": "Your Cards",
         "upload": "Upload",

@@ -101,6 +101,18 @@ function saveRejections(dir, data) {
   fs.writeFileSync(rejectionPath(dir), JSON.stringify(data, null, 2));
 }
 
+function usagePath(dir) {
+  return path.join(dir, 'usage.json');
+}
+function loadUsage(dir) {
+  const file = usagePath(dir);
+  if (!fs.existsSync(file)) return {};
+  try { return JSON.parse(fs.readFileSync(file)); } catch { return {}; }
+}
+function saveUsage(dir, data) {
+  fs.writeFileSync(usagePath(dir), JSON.stringify(data, null, 2));
+}
+
 function allUserDirs() {
   const base = path.join(__dirname, 'uploads');
   if (!fs.existsSync(base)) return [];
@@ -222,6 +234,7 @@ app.get('/groups', ensureAuthenticated, (req, res) => {
   ensureDirs(userDir);
   const groups = loadGroups(userDir);
   const rejections = loadRejections(userDir);
+  const usage = loadUsage(userDir);
   const counts = Object.fromEntries(groups.map(g => [g.id, 0]));
   fs.readdir(userDir, (err, files) => {
     if (!err) {
@@ -231,7 +244,7 @@ app.get('/groups', ensureAuthenticated, (req, res) => {
           meta.groups.forEach(g => { if (counts[g] !== undefined) counts[g]++; });
         });
     }
-    res.json(groups.map(g => ({ id: g.id, name: g.name, emails: g.emails || [], rejected: rejections[g.id] || [], count: counts[g.id] || 0 })));
+    res.json(groups.map(g => ({ id: g.id, name: g.name, emails: g.emails || [], rejected: rejections[g.id] || [], used: usage[g.id] || [], count: counts[g.id] || 0 })));
   });
 });
 
@@ -325,6 +338,14 @@ app.post('/shared-groups/:owner/:id/show', ensureAuthenticated, (req, res) => {
   state.showInMy = state.showInMy.filter(x => x !== key);
   if (req.body.show) state.showInMy.push(key);
   saveSharedState(myDir, state);
+  const email = req.user.emails[0].value;
+  const ownerDir = path.join(__dirname, 'uploads', req.params.owner);
+  ensureDirs(ownerDir);
+  const usage = loadUsage(ownerDir);
+  if (!usage[req.params.id]) usage[req.params.id] = [];
+  usage[req.params.id] = usage[req.params.id].filter(e => e !== email);
+  if (req.body.show) usage[req.params.id].push(email);
+  saveUsage(ownerDir, usage);
   res.json({ success: true });
 });
 

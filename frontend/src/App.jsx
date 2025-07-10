@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocalization } from './localization';
-import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, ListSubheader, Avatar } from '@mui/material';
+import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, ListSubheader, Avatar, IconButton } from '@mui/material';
 import { useDrop } from 'react-dnd';
 import { NativeTypes } from 'react-dnd-html5-backend';
 
@@ -248,7 +248,7 @@ function App() {
       <Box sx={{ height:'100vh', display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center' }}>
         <svg width="120" height="120" viewBox="0 0 120 120">
           <rect x="10" y="10" width="100" height="100" rx="20" fill="#1976d2" />
-          <text x="60" y="70" textAnchor="middle" fontSize="40" fill="white">AC</text>
+          <text x="60" y="70" textAnchor="middle" fontSize="40" fill="white">SC</text>
         </svg>
         <Typography variant="h4" sx={{ my:2 }}>{t('pages.main.appName')}</Typography>
         <Button variant="contained" color="primary" href={`${API_URL}/auth/google`}>
@@ -274,7 +274,12 @@ function App() {
               ))}
             </Select>
           </FormControl>
-          <Button color="inherit" href={`${API_URL}/auth/google`}>{t('pages.main.changeUser')}</Button>
+          <IconButton color="inherit" href={`${API_URL}/auth/google`} title={t('pages.main.changeUser')}>
+            <svg width="24" height="24" viewBox="0 0 24 24">
+              <path d="M10 17l5-5-5-5v3H3v4h7v3z" fill="currentColor" />
+              <path d="M13 21h8V3h-8v2h6v14h-6v2z" fill="currentColor" />
+            </svg>
+          </IconButton>
         </Toolbar>
       </AppBar>
       <Tabs value={tab} onChange={(_, v) => setTab(v)} centered>
@@ -476,7 +481,11 @@ function App() {
               <Chip
                 key={e}
                 label={e}
-                color={shareGroup?.rejected?.includes(e) ? 'error' : 'default'}
+                color={shareGroup?.rejected?.includes(e)
+                  ? 'error'
+                  : shareGroup?.used?.includes(e)
+                  ? 'success'
+                  : 'default'}
                 onDelete={()=>setShareEmails(shareEmails.filter(x=>x!==e))}
               />
             ))}

@@ -3,9 +3,9 @@
   "defaultGroupName": "Мои карты",
   "pages": {
     "main": {
-      "appName": "AnyCard",
+      "appName": "Шаракарты",
       "loginButton": "Войти через Google",
-      "changeUser": "Сменить пользователя",
+      "changeUser": "Выйти",
       "tabs": {
         "yourCards": "Мои карты",
         "upload": "Загрузка",

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, Fragment } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, ListSubheader, Avatar } from '@mui/material';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -24,6 +24,7 @@ function App() {
   const [shareInput, setShareInput] = useState('');
   const [sharedGroups, setSharedGroups] = useState([]);
   const [crop, setCrop] = useState({ unit: '%', x: 0, y: 0, width: 100, height: 100 });
+  const [completedCrop, setCompletedCrop] = useState(null);
   const imageRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -91,12 +92,6 @@ function App() {
       .then(setSharedGroups);
   };
 
-  const createImage = (url) => new Promise((resolve, reject) => {
-    const img = new Image();
-    img.addEventListener('load', () => resolve(img));
-    img.addEventListener('error', (err) => reject(err));
-    img.src = url;
-  });
 
   useEffect(() => {
     if (file) {
@@ -105,14 +100,14 @@ function App() {
   }, [file]);
 
   const getCroppedBlob = async () => {
-    if (!file) return file;
-    const image = await createImage(URL.createObjectURL(file));
-    const scaleX = image.naturalWidth / 100;
-    const scaleY = image.naturalHeight / 100;
-    const sx = crop.x * scaleX;
-    const sy = crop.y * scaleY;
-    const sw = crop.width * scaleX;
-    const sh = crop.height * scaleY;
+    if (!file || !completedCrop || !imageRef.current) return file;
+    const image = imageRef.current;
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    const sx = completedCrop.x * scaleX;
+    const sy = completedCrop.y * scaleY;
+    const sw = completedCrop.width * scaleX;
+    const sh = completedCrop.height * scaleY;
     const canvas = document.createElement('canvas');
     canvas.width = sw;
     canvas.height = sh;
@@ -196,21 +191,18 @@ function App() {
                 acc[key].push({ ...sg, id:`s:${sg.owner}:${sg.id}` });
                 return acc;
               }, {});
-              return (
-                <>
-                  {myGroups.map(g=>(
+              const items = [
+                ...myGroups.map(g => (
+                  <MenuItem key={g.id} value={g.id}>{g.name} ({g.count})</MenuItem>
+                )),
+                ...Object.entries(shared).flatMap(([owner, arr]) => [
+                  <ListSubheader key={owner}>{owner}</ListSubheader>,
+                  ...arr.map(g => (
                     <MenuItem key={g.id} value={g.id}>{g.name} ({g.count})</MenuItem>
-                  ))}
-                  {Object.entries(shared).map(([owner, arr])=>(
-                    <Fragment key={owner}>
-                      <ListSubheader>{owner}</ListSubheader>
-                      {arr.map(g=>(
-                        <MenuItem key={g.id} value={g.id}>{g.name} ({g.count})</MenuItem>
-                      ))}
-                    </Fragment>
-                  ))}
-                </>
-              );
+                  ))
+                ])
+              ];
+              return items;
             })()}
           </Select>
         </FormControl>
@@ -247,14 +239,17 @@ function App() {
             {file ? (
               <ReactCrop
                 crop={crop}
-                onChange={c => setCrop(c)}
+                onChange={(_, percent) => setCrop(percent)}
+                onComplete={c => setCompletedCrop(c)}
                 keepSelection
+                style={{ width:'100%', height:'100%' }}
               >
                 <img
                   ref={imageRef}
                   alt="crop"
                   src={URL.createObjectURL(file)}
-                  style={{ maxHeight: '100%', maxWidth: '100%' }}
+                  onLoad={() => setCrop({ unit:'%', x:0, y:0, width:100, height:100 })}
+                  style={{ width:'100%', height:'100%', objectFit:'contain' }}
                 />
               </ReactCrop>
             ) : (

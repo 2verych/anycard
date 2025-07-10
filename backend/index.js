@@ -15,6 +15,22 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const PREVIEW_SIZE = parseInt(process.env.PREVIEW_SIZE) || 128;
 
+function loadLocalization() {
+  const dir = path.join(__dirname, 'localization');
+  const result = {};
+  if (fs.existsSync(dir)) {
+    for (const file of fs.readdirSync(dir)) {
+      if (file.endsWith('.json')) {
+        const code = file.replace(/\.json$/, '');
+        try {
+          result[code] = JSON.parse(fs.readFileSync(path.join(dir, file)));
+        } catch {}
+      }
+    }
+  }
+  return result;
+}
+
 function getUserDir(req) {
   const email = req.user.emails[0].value;
   return path.join(__dirname, 'uploads', email);
@@ -33,7 +49,7 @@ function groupsPath(dir) {
 function loadGroups(dir) {
   const file = groupsPath(dir);
   if (!fs.existsSync(file)) {
-    const data = { groups: [{ id: 'default', name: 'Мои карты', emails: [] }] };
+    const data = { groups: [{ id: 'default', name: 'My Cards', emails: [] }] };
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
     return data.groups;
   }
@@ -366,6 +382,10 @@ app.delete('/cards/:file', ensureAuthenticated, (req, res) => {
 });
 
 app.use('/uploads', ensureAuthenticated, express.static(path.join(__dirname, 'uploads')));
+
+app.get('/localization', (req, res) => {
+  res.json(loadLocalization());
+});
 
 app.get('/config', (req, res) => {
   res.json({ previewSize: PREVIEW_SIZE });

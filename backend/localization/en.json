@@ -1,0 +1,45 @@
+{
+  "lang": "English",
+  "defaultGroupName": "My Cards",
+  "pages": {
+    "main": {
+      "appName": "AnyCard",
+      "loginButton": "Login with Google",
+      "changeUser": "Change User",
+      "tabs": {
+        "yourCards": "Your Cards",
+        "upload": "Upload",
+        "groups": "Groups",
+        "shared": "Shared"
+      },
+      "groupLabel": "Group",
+      "noCards": "No cards uploaded.",
+      "clickOrDrop": "Click or drop a file...",
+      "resetFile": "Reset selected file",
+      "commentLabel": "Comment",
+      "uploadButtonText": "Upload",
+      "newGroup": "New group",
+      "groupDefault": "Group",
+      "addButton": "Add",
+      "shareButton": "Share",
+      "shareTitle": "Share",
+      "addEmails": "Add emails",
+      "emailPlaceholder": "email@example.com",
+      "showInMyGroups": "Show in my groups",
+      "saveButton": "Save",
+      "cancelButton": "Cancel",
+      "deleteButton": "Delete",
+      "closeButton": "Close",
+      "deleteSelectedQuestion": "Delete selected card(s)?",
+      "deleteGroupQuestion": "Delete this group?",
+      "removeSharedQuestion": "Remove shared group?",
+      "fileUploaded": "File uploaded"
+    }
+  },
+  "errors": {
+    "nameRequired": "Name required",
+    "invalidChars": "Invalid characters",
+    "nameUnique": "Name must be unique",
+    "deleteFailed": "Delete failed"
+  }
+}

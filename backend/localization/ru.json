@@ -1,0 +1,45 @@
+{
+  "lang": "Русский",
+  "defaultGroupName": "Мои карты",
+  "pages": {
+    "main": {
+      "appName": "AnyCard",
+      "loginButton": "Войти через Google",
+      "changeUser": "Сменить пользователя",
+      "tabs": {
+        "yourCards": "Мои карты",
+        "upload": "Загрузка",
+        "groups": "Группы",
+        "shared": "Общие"
+      },
+      "groupLabel": "Группа",
+      "noCards": "Нет загруженных карт.",
+      "clickOrDrop": "Нажмите или перетащите файл...",
+      "resetFile": "Сбросить файл",
+      "commentLabel": "Комментарий",
+      "uploadButtonText": "Загрузить",
+      "newGroup": "Новая группа",
+      "groupDefault": "Группа",
+      "addButton": "Добавить",
+      "shareButton": "Поделиться",
+      "shareTitle": "Поделиться",
+      "addEmails": "Добавить адреса",
+      "emailPlaceholder": "email@example.com",
+      "showInMyGroups": "Показывать в моих группах",
+      "saveButton": "Сохранить",
+      "cancelButton": "Отмена",
+      "deleteButton": "Удалить",
+      "closeButton": "Закрыть",
+      "deleteSelectedQuestion": "Удалить выбранные карты?",
+      "deleteGroupQuestion": "Удалить эту группу?",
+      "removeSharedQuestion": "Удалить общую группу?",
+      "fileUploaded": "Файл загружен"
+    }
+  },
+  "errors": {
+    "nameRequired": "Требуется имя",
+    "invalidChars": "Недопустимые символы",
+    "nameUnique": "Имя должно быть уникальным",
+    "deleteFailed": "Ошибка удаления"
+  }
+}

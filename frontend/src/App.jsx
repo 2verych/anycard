@@ -216,9 +216,11 @@ function App() {
         </FormControl>
         {multiSelect && (
           <Box sx={{ mb:2, display:'flex', gap:1 }}>
-            <Button variant="contained" color="error" disabled={selectedCards.length===0} onClick={()=>setConfirmDeleteCards(selectedCards)}>
-              Delete
-            </Button>
+            {!selectedGroup.startsWith('s:') && (
+              <Button variant="contained" color="error" disabled={selectedCards.length===0} onClick={()=>setConfirmDeleteCards(selectedCards)}>
+                Delete
+              </Button>
+            )}
             <Button variant="outlined" onClick={()=>{ setMultiSelect(false); setSelectedCards([]); }}>
               Cancel
             </Button>
@@ -398,24 +400,28 @@ function App() {
           {dialogCard && (
             <>
               <Box component="img" src={`${API_URL}${dialogCard.original}`} alt="card" sx={{ width:'100%', height:'100%', objectFit:'contain' }} />
-              <Stack direction="row" spacing={1} sx={{ mt:2, flexWrap:'wrap', justifyContent:'center' }}>
-                {groups.map(g=>(
-                  <Chip
-                    key={g.id}
-                    label={g.name}
-                    color={dialogCard.groups?.includes(g.id)?'primary':'default'}
-                    clickable={g.id!=='default'}
-                    onClick={g.id==='default'?undefined:()=>{
-                      fetch(`${API_URL}/cards/${dialogCard.filename}/groups/${g.id}`, {method:'POST', credentials:'include'}).then(()=>{
-                        loadMyCards();
-                        loadGroups();
-                        setDialogCard({...dialogCard, groups: dialogCard.groups.includes(g.id)? dialogCard.groups.filter(x=>x!==g.id):[...dialogCard.groups,g.id]});
-                      });
-                    }}
-                  />
-                ))}
-              </Stack>
-              <Button variant="contained" color="error" sx={{ mt:2 }} onClick={()=>setConfirmDeleteCards([dialogCard.filename])}>Delete</Button>
+              {dialogCard.owner === user.emails?.[0]?.value && (
+                <>
+                  <Stack direction="row" spacing={1} sx={{ mt:2, flexWrap:'wrap', justifyContent:'center' }}>
+                    {groups.map(g=>(
+                      <Chip
+                        key={g.id}
+                        label={g.name}
+                        color={dialogCard.groups?.includes(g.id)?'primary':'default'}
+                        clickable={g.id!=='default'}
+                        onClick={g.id==='default'?undefined:()=>{
+                          fetch(`${API_URL}/cards/${dialogCard.filename}/groups/${g.id}`, {method:'POST', credentials:'include'}).then(()=>{
+                            loadMyCards();
+                            loadGroups();
+                            setDialogCard({...dialogCard, groups: dialogCard.groups.includes(g.id)? dialogCard.groups.filter(x=>x!==g.id):[...dialogCard.groups,g.id]});
+                          });
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                  <Button variant="contained" color="error" sx={{ mt:2 }} onClick={()=>setConfirmDeleteCards([dialogCard.filename])}>Delete</Button>
+                </>
+              )}
             </>
           )}
         </DialogContent>
@@ -428,7 +434,13 @@ function App() {
             <Button variant="contained" color="error" onClick={()=>{
               const files = Array.isArray(confirmDeleteCards) ? confirmDeleteCards : [];
               Promise.all(files.map(f=>fetch(`${API_URL}/cards/${f}`, {method:'DELETE', credentials:'include'})))
-                .then(()=>{ loadMyCards(); loadGroups(); })
+                .then(()=>{
+                  loadMyCards();
+                  loadGroups();
+                  if(dialogCard && files.length===1 && files[0]===dialogCard.filename){
+                    setDialogCard(null);
+                  }
+                })
                 .catch(()=>{ showError('Delete failed'); })
                 .finally(()=>{ setConfirmDeleteCards(null); setSelectedCards([]); setMultiSelect(false); });
             }}>Delete</Button>

@@ -2,8 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, ListSubheader, Avatar } from '@mui/material';
 import { useDrop } from 'react-dnd';
 import { NativeTypes } from 'react-dnd-html5-backend';
-import ReactCrop from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -25,9 +23,6 @@ function App() {
   const [shareEmails, setShareEmails] = useState([]);
   const [shareInput, setShareInput] = useState('');
   const [sharedGroups, setSharedGroups] = useState([]);
-  const [crop, setCrop] = useState({ unit: '%', x: 0, y: 0, width: 100, height: 100 });
-  const [completedCrop, setCompletedCrop] = useState(null);
-  const imageRef = useRef(null);
   const fileInputRef = useRef(null);
   const [{ isOver }, drop] = useDrop(() => ({
     accept: [NativeTypes.FILE],
@@ -103,37 +98,11 @@ function App() {
   };
 
 
-  useEffect(() => {
-    if (file) {
-      setCrop({ unit: '%', x: 0, y: 0, width: 100, height: 100 });
-    }
-  }, [file]);
-
-  const getCroppedBlob = async () => {
-    if (!file || !completedCrop || !imageRef.current) return file;
-    const image = imageRef.current;
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-    const sx = completedCrop.x * scaleX;
-    const sy = completedCrop.y * scaleY;
-    const sw = completedCrop.width * scaleX;
-    const sh = completedCrop.height * scaleY;
-    const canvas = document.createElement('canvas');
-    canvas.width = sw;
-    canvas.height = sh;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
-    return new Promise(resolve => {
-      canvas.toBlob(b => resolve(new File([b], file.name, { type: 'image/jpeg' })), 'image/jpeg');
-    });
-  };
-
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!file) return;
-    const croppedFile = await getCroppedBlob();
     const formData = new FormData();
-    formData.append('file', croppedFile);
+    formData.append('file', file);
     formData.append('comment', comment);
     const groupsForUpload = uploadGroups.includes('default') ? uploadGroups : [...uploadGroups, 'default'];
     formData.append('groups', JSON.stringify(groupsForUpload));
@@ -242,25 +211,11 @@ function App() {
           <input type="file" accept="image/*" ref={fileInputRef} style={{display:'none'}} onChange={e=>setFile(e.target.files[0])} />
           <Box
             ref={drop}
-            onClick={file ? undefined : ()=>fileInputRef.current?.click()}
-            sx={{ width:'100%', maxWidth:400, height:'25vh', mx:'auto', border:'2px dashed gray', mb:1, display:'flex', justifyContent:'center', alignItems:'center', position:'relative', overflow:'hidden', cursor: file ? 'default' : 'pointer', borderColor: isOver ? 'primary.main' : 'gray' }}
+            onClick={file ? undefined : () => fileInputRef.current?.click()}
+            sx={{ width:'100%', height:'50vh', border:'2px dashed gray', mb:1, display:'flex', justifyContent:'center', alignItems:'center', position:'relative', overflow:'hidden', cursor: file ? 'default' : 'pointer', borderColor: isOver ? 'primary.main' : 'gray' }}
           >
             {file ? (
-              <ReactCrop
-                crop={crop}
-                onChange={(_, percent) => setCrop(percent)}
-                onComplete={c => setCompletedCrop(c)}
-                keepSelection
-                style={{ width:'100%', height:'100%' }}
-              >
-                <img
-                  ref={imageRef}
-                  alt="crop"
-                  src={URL.createObjectURL(file)}
-                  onLoad={() => setCrop({ unit:'%', x:0, y:0, width:100, height:100 })}
-                  style={{ width:'100%', height:'100%', objectFit:'contain' }}
-                />
-              </ReactCrop>
+              <Box component="img" src={URL.createObjectURL(file)} alt="preview" sx={{ width:'100%', height:'100%', objectFit:'contain' }} />
             ) : (
               <Typography color="primary" sx={{ textDecoration:'underline' }}>Click or drop a file...</Typography>
             )}

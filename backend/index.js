@@ -109,6 +109,22 @@ function loadUsage(dir) {
   if (!fs.existsSync(file)) return {};
   try { return JSON.parse(fs.readFileSync(file)); } catch { return {}; }
 }
+
+function calculateUsage(owner) {
+  const result = {};
+  for (const dir of allUserDirs()) {
+    if (dir === owner) continue;
+    const state = loadSharedState(path.join(__dirname, 'uploads', dir));
+    for (const key of state.showInMy || []) {
+      const [o, id] = key.split('/');
+      if (o === owner) {
+        if (!result[id]) result[id] = [];
+        if (!result[id].includes(dir)) result[id].push(dir);
+      }
+    }
+  }
+  return result;
+}
 function saveUsage(dir, data) {
   fs.writeFileSync(usagePath(dir), JSON.stringify(data, null, 2));
 }
@@ -232,9 +248,15 @@ app.get('/cards', ensureAuthenticated, (req, res) => {
 app.get('/groups', ensureAuthenticated, (req, res) => {
   const userDir = getUserDir(req);
   ensureDirs(userDir);
+  const email = req.user.emails[0].value;
   const groups = loadGroups(userDir);
   const rejections = loadRejections(userDir);
-  const usage = loadUsage(userDir);
+  const usageStored = loadUsage(userDir);
+  const usageDynamic = calculateUsage(email);
+  const usage = {};
+  groups.forEach(g => {
+    usage[g.id] = Array.from(new Set([...(usageStored[g.id] || []), ...(usageDynamic[g.id] || [])]));
+  });
   const counts = Object.fromEntries(groups.map(g => [g.id, 0]));
   fs.readdir(userDir, (err, files) => {
     if (!err) {

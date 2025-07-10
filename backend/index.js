@@ -15,6 +15,51 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const PREVIEW_SIZE = parseInt(process.env.PREVIEW_SIZE) || 128;
 
+function getUserDir(req) {
+  const email = req.user.emails[0].value;
+  return path.join(__dirname, 'uploads', email);
+}
+
+function ensureDirs(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(path.join(dir, 'previews'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'meta'), { recursive: true });
+}
+
+function groupsPath(dir) {
+  return path.join(dir, 'groups.json');
+}
+
+function loadGroups(dir) {
+  const file = groupsPath(dir);
+  if (!fs.existsSync(file)) {
+    const data = { groups: [{ id: 'default', name: 'Мои карты' }] };
+    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    return data.groups;
+  }
+  return JSON.parse(fs.readFileSync(file)).groups;
+}
+
+function saveGroups(dir, groups) {
+  fs.writeFileSync(groupsPath(dir), JSON.stringify({ groups }, null, 2));
+}
+
+function loadMeta(dir, file) {
+  const metaFile = path.join(dir, 'meta', file + '.json');
+  if (!fs.existsSync(metaFile)) {
+    return { comment: '', groups: ['default'] };
+  }
+  try {
+    return JSON.parse(fs.readFileSync(metaFile));
+  } catch {
+    return { comment: '', groups: ['default'] };
+  }
+}
+
+function saveMeta(dir, file, meta) {
+  fs.writeFileSync(path.join(dir, 'meta', file + '.json'), JSON.stringify(meta, null, 2));
+}
+
 app.use(morgan('dev'));
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -82,18 +127,19 @@ const upload = multer({ storage });
 
 app.post('/upload', ensureAuthenticated, upload.single('file'), async (req, res) => {
   try {
-    const email = req.user.emails[0].value;
-    const userDir = path.join(__dirname, 'uploads', email);
-    const previewDir = path.join(userDir, 'previews');
-    fs.mkdirSync(previewDir, { recursive: true });
+    const userDir = getUserDir(req);
+    ensureDirs(userDir);
 
     const comment = req.body.comment || '';
-    if (comment) {
-      fs.writeFileSync(path.join(userDir, req.file.filename + '.txt'), comment);
-    }
+    let groups = [];
+    try { groups = JSON.parse(req.body.groups); } catch {}
+    if (!Array.isArray(groups) || groups.length === 0) groups = ['default'];
 
-    const previewPath = path.join(previewDir, req.file.filename);
+    const previewPath = path.join(userDir, 'previews', req.file.filename);
     await sharp(req.file.path).resize(PREVIEW_SIZE).toFile(previewPath);
+
+    const meta = { comment, groups };
+    saveMeta(userDir, req.file.filename, meta);
 
     res.json({ success: true });
   } catch (err) {
@@ -103,26 +149,84 @@ app.post('/upload', ensureAuthenticated, upload.single('file'), async (req, res)
 });
 
 app.get('/cards', ensureAuthenticated, (req, res) => {
+  const userDir = getUserDir(req);
   const email = req.user.emails[0].value;
-  const userDir = path.join(__dirname, 'uploads', email);
   fs.readdir(userDir, (err, files) => {
     if (err) return res.json([]);
     const result = files
-      .filter(f => !f.endsWith('.txt') && f !== 'previews')
+      .filter(f => !f.endsWith('.txt') && f !== 'previews' && f !== 'meta' && !f.endsWith('.json'))
       .map(f => {
-        const commentPath = path.join(userDir, f + '.txt');
-        let comment = '';
-        if (fs.existsSync(commentPath)) {
-          comment = fs.readFileSync(commentPath, 'utf8');
-        }
+        const meta = loadMeta(userDir, f);
         return {
+          filename: f,
           original: `/uploads/${email}/${f}`,
           preview: `/uploads/${email}/previews/${f}`,
-          comment,
+          comment: meta.comment,
+          groups: meta.groups,
         };
       });
     res.json(result);
   });
+});
+
+app.get('/groups', ensureAuthenticated, (req, res) => {
+  const userDir = getUserDir(req);
+  ensureDirs(userDir);
+  const groups = loadGroups(userDir);
+  const counts = Object.fromEntries(groups.map(g => [g.id, 0]));
+  fs.readdir(userDir, (err, files) => {
+    if (!err) {
+      files.filter(f => !f.endsWith('.txt') && f !== 'previews' && f !== 'meta' && !f.endsWith('.json'))
+        .forEach(f => {
+          const meta = loadMeta(userDir, f);
+          meta.groups.forEach(g => { if (counts[g] !== undefined) counts[g]++; });
+        });
+    }
+    res.json(groups.map(g => ({ id: g.id, name: g.name, count: counts[g.id] || 0 })));
+  });
+});
+
+app.post('/groups', ensureAuthenticated, (req, res) => {
+  const userDir = getUserDir(req);
+  const groups = loadGroups(userDir);
+  const id = Date.now().toString();
+  const name = req.body.name || 'Group';
+  groups.push({ id, name });
+  saveGroups(userDir, groups);
+  res.json({ id, name });
+});
+
+app.put('/groups/:id', ensureAuthenticated, (req, res) => {
+  const userDir = getUserDir(req);
+  const groups = loadGroups(userDir).map(g => g.id === req.params.id ? { ...g, name: req.body.name } : g);
+  saveGroups(userDir, groups);
+  res.json({ success: true });
+});
+
+app.delete('/groups/:id', ensureAuthenticated, (req, res) => {
+  const userDir = getUserDir(req);
+  let groups = loadGroups(userDir).filter(g => g.id !== req.params.id);
+  saveGroups(userDir, groups);
+  fs.readdirSync(path.join(userDir, 'meta')).forEach(f => {
+    const meta = loadMeta(userDir, f.replace('.json',''));
+    if (meta.groups.includes(req.params.id)) {
+      meta.groups = meta.groups.filter(g => g !== req.params.id);
+      saveMeta(userDir, f.replace('.json',''), meta);
+    }
+  });
+  res.json({ success: true });
+});
+
+app.post('/cards/:file/groups/:groupId', ensureAuthenticated, (req, res) => {
+  const userDir = getUserDir(req);
+  const meta = loadMeta(userDir, req.params.file);
+  if (meta.groups.includes(req.params.groupId)) {
+    meta.groups = meta.groups.filter(g => g !== req.params.groupId);
+  } else {
+    meta.groups.push(req.params.groupId);
+  }
+  saveMeta(userDir, req.params.file, meta);
+  res.json(meta);
 });
 
 app.use('/uploads', ensureAuthenticated, express.static(path.join(__dirname, 'uploads')));

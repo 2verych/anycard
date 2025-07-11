@@ -22,6 +22,7 @@ const PREVIEW_SIZE = parseInt(process.env.PREVIEW_SIZE) || 128;
 const MAX_CARDS = parseInt(process.env.MAX_CARDS) || 100;
 const MAX_GROUPS = parseInt(process.env.MAX_GROUPS) || 10;
 const MAX_SHARE_EMAILS = parseInt(process.env.MAX_SHARE_EMAILS) || 10;
+const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024;
 
 function validPathComponent(name) {
   return typeof name === 'string' && !name.includes('..') && !name.includes('/') && !name.includes('\\');
@@ -210,12 +211,23 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + path.extname(file.originalname));
   }
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
 
-app.post('/upload', ensureAuthenticated, upload.single('file'), async (req, res) => {
-  try {
-    const userDir = getUserDir(req);
-    ensureDirs(userDir);
+app.post('/upload', ensureAuthenticated, (req, res) => {
+  upload.single('file')(req, res, async err => {
+    if (err) {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'file_too_large' });
+      }
+      console.error('Upload error:', err);
+      return res.status(500).json({ error: 'Upload failed' });
+    }
+    try {
+      const userDir = getUserDir(req);
+      ensureDirs(userDir);
 
     const existing = fs.readdirSync(userDir).filter(f => !f.endsWith('.txt') && f !== 'previews' && f !== 'meta' && !f.endsWith('.json'));
     if (existing.length >= MAX_CARDS) {

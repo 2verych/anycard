@@ -44,6 +44,7 @@
     "limitCards": "Card limit reached",
     "limitGroups": "Group limit reached",
     "limitEmails": "Email limit exceeded",
-    "uploadFailed": "Upload failed"
+    "uploadFailed": "Upload failed",
+    "fileTooLarge": "File too large"
   }
 }

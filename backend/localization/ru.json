@@ -44,6 +44,7 @@
     "limitCards": "Превышен лимит карт",
     "limitGroups": "Превышен лимит групп",
     "limitEmails": "Слишком много адресов",
-    "uploadFailed": "Ошибка загрузки"
+    "uploadFailed": "Ошибка загрузки",
+    "fileTooLarge": "Слишком большой файл"
   }
 }

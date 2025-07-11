@@ -9,6 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 function App() {
   const { t, lang, setLang, langs } = useLocalization();
   const [user, setUser] = useState(null);
+  const [csrfToken, setCsrfToken] = useState('');
   const [tab, setTab] = useState(0);
   const [cards, setCards] = useState([]);
   const [myCards, setMyCards] = useState([]);
@@ -41,6 +42,12 @@ function App() {
   const [confirmDeleteShared, setConfirmDeleteShared] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const fileInputRef = useRef(null);
+
+  const fetchWithCsrf = (url, options = {}) => {
+    options.headers = { ...(options.headers || {}), 'CSRF-Token': csrfToken };
+    options.credentials = 'include';
+    return fetch(url, options);
+  };
   const filteredCards = cards.filter(c => {
     if (selectedGroup === 'all') return true;
     if (selectedGroup.startsWith('s:')) return true;
@@ -62,6 +69,7 @@ function App() {
     fetch(`${API_URL}/me`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
+        setCsrfToken(data.csrfToken);
         if (data && data.user) setUser(data.user);
       });
   }, []);
@@ -85,19 +93,19 @@ function App() {
   }, [selectedGroup]);
 
   const loadMyCards = () => {
-    fetch(`${API_URL}/cards`, { credentials: 'include' })
+    fetchWithCsrf(`${API_URL}/cards`)
       .then(res => res.json())
       .then(data => { setCards(data); setMyCards(data); });
   };
 
   const loadSharedCards = (owner, id) => {
-    fetch(`${API_URL}/shared-cards/${owner}/${id}`, { credentials:'include' })
+    fetchWithCsrf(`${API_URL}/shared-cards/${owner}/${id}`)
       .then(res => res.json())
       .then(setCards);
   };
 
   const loadGroups = () => {
-    fetch(`${API_URL}/groups`, { credentials: 'include' })
+    fetchWithCsrf(`${API_URL}/groups`)
       .then(res => res.json())
       .then(data => {
         setGroups(data.map(g => ({ ...g, originalName: g.name })));
@@ -114,7 +122,7 @@ function App() {
   }, [tab]);
 
   const loadSharedGroups = () => {
-    fetch(`${API_URL}/shared-groups`, { credentials:'include' })
+    fetchWithCsrf(`${API_URL}/shared-groups`)
       .then(res => res.json())
       .then(setSharedGroups);
   };
@@ -228,9 +236,8 @@ function App() {
     formData.append('comment', comment);
     const groupsForUpload = uploadGroups.includes('default') ? uploadGroups : [...uploadGroups, 'default'];
     formData.append('groups', JSON.stringify(groupsForUpload));
-    const resp = await fetch(`${API_URL}/upload`, {
+    const resp = await fetchWithCsrf(`${API_URL}/upload`, {
       method: 'POST',
-      credentials: 'include',
       body: formData,
     });
     if (!resp.ok) {
@@ -407,7 +414,7 @@ function App() {
         <Box sx={{ display:'flex', alignItems:'center', mb:2 }}>
           <TextField label={t('pages.main.newGroup')} size="small" sx={{ mr:2 }} value={newGroupName} onChange={e=>setNewGroupName(e.target.value)} />
           <Button variant="contained" onClick={async ()=>{
-            const res = await fetch(`${API_URL}/groups`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:newGroupName||t('pages.main.groupDefault')})});
+            const res = await fetchWithCsrf(`${API_URL}/groups`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:newGroupName||t('pages.main.groupDefault')})});
             if(!res.ok){
               const data = await res.json().catch(()=>({}));
               if(data.error==='limit_groups') showError(t('errors.limitGroups'));
@@ -422,7 +429,7 @@ function App() {
             <TextField size="small" value={g.name} onChange={e=>setGroups(groups.map(gr=>gr.id===g.id?{...gr,name:e.target.value}:gr))} sx={{ mr:2 }} />
             <Typography sx={{ mr:2 }}>({g.count})</Typography>
             <Button size="small" onClick={()=>{
-              fetch(`${API_URL}/groups`, { credentials:'include' })
+              fetchWithCsrf(`${API_URL}/groups`)
                 .then(res=>res.json())
                 .then(list=>{
                   const fresh=list.find(gr=>gr.id===g.id)||g;
@@ -442,7 +449,7 @@ function App() {
                     if(!name){ showError(t('errors.nameRequired')); return; }
                     if(invalid){ showError(t('errors.invalidChars')); return; }
                     if(groups.some(gr=>gr.id!==g.id && gr.name.trim()===name)) { showError(t('errors.nameUnique')); return; }
-                    fetch(`${API_URL}/groups/${g.id}`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})}).then(()=>{
+                    fetchWithCsrf(`${API_URL}/groups/${g.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})}).then(()=>{
                       setGroups(groups.map(gr=>gr.id===g.id?{...gr, originalName:name}:gr));
                       loadGroups();
                     });
@@ -467,7 +474,7 @@ function App() {
                 <Box sx={{ display:'flex', alignItems:'center' }}>
                   <Typography sx={{ mr:2 }}>{sg.name} ({sg.count})</Typography>
                   <FormControlLabel control={<Checkbox checked={sg.showInMy} onChange={e=>{
-                    fetch(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/show`, {method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({show:e.target.checked})}).then(loadSharedGroups);
+                    fetchWithCsrf(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/show`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({show:e.target.checked})}).then(loadSharedGroups);
                   }} />} label={t('pages.main.showInMyGroups')} />
                   <Button size="small" color="error" onClick={()=>{
                     setConfirmDeleteShared({owner: sg.owner, id: sg.id});
@@ -516,7 +523,7 @@ function App() {
           <Box sx={{ textAlign:'right' }}>
             <Button onClick={()=>setShareGroup(null)} sx={{ mr:1 }}>{t('pages.main.cancelButton')}</Button>
             <Button variant="contained" onClick={async ()=>{
-              const res = await fetch(`${API_URL}/groups/${shareGroup.id}/emails`, {method:'PUT', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({emails:shareEmails})});
+              const res = await fetchWithCsrf(`${API_URL}/groups/${shareGroup.id}/emails`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({emails:shareEmails})});
               if(!res.ok){
                 const data = await res.json().catch(()=>({}));
                 if(data.error==='limit_emails') showError(t('errors.limitEmails'));
@@ -565,7 +572,7 @@ function App() {
                         color={dialogCard.groups?.includes(g.id)?'primary':'default'}
                         clickable={g.id!=='default'}
                         onClick={g.id==='default'?undefined:()=>{
-                          fetch(`${API_URL}/cards/${dialogCard.filename}/groups/${g.id}`, {method:'POST', credentials:'include'}).then(()=>{
+                          fetchWithCsrf(`${API_URL}/cards/${dialogCard.filename}/groups/${g.id}`, {method:'POST'}).then(()=>{
                             loadMyCards();
                             loadGroups();
                             setDialogCard({...dialogCard, groups: dialogCard.groups.includes(g.id)? dialogCard.groups.filter(x=>x!==g.id):[...dialogCard.groups,g.id]});
@@ -588,7 +595,7 @@ function App() {
             <Button onClick={()=>setConfirmDeleteCards(null)} sx={{ mr:1 }}>{t('pages.main.cancelButton')}</Button>
             <Button variant="contained" color="error" onClick={()=>{
               const files = Array.isArray(confirmDeleteCards) ? confirmDeleteCards : [];
-              Promise.all(files.map(f=>fetch(`${API_URL}/cards/${f}`, {method:'DELETE', credentials:'include'})))
+              Promise.all(files.map(f=>fetchWithCsrf(`${API_URL}/cards/${f}`, {method:'DELETE'})))
                 .then(()=>{
                   loadMyCards();
                   loadGroups();
@@ -608,7 +615,7 @@ function App() {
           <Box sx={{ textAlign:'right' }}>
             <Button onClick={()=>setConfirmDeleteGroup(null)} sx={{ mr:1 }}>{t('pages.main.cancelButton')}</Button>
             <Button variant="contained" color="error" onClick={()=>{
-              fetch(`${API_URL}/groups/${confirmDeleteGroup}`, {method:'DELETE', credentials:'include'}).then(()=>{ loadGroups(); setConfirmDeleteGroup(null); });
+              fetchWithCsrf(`${API_URL}/groups/${confirmDeleteGroup}`, {method:'DELETE'}).then(()=>{ loadGroups(); setConfirmDeleteGroup(null); });
             }}>{t('pages.main.deleteButton')}</Button>
           </Box>
         </DialogContent>
@@ -619,7 +626,7 @@ function App() {
           <Box sx={{ textAlign:'right' }}>
             <Button onClick={()=>setConfirmDeleteShared(null)} sx={{ mr:1 }}>{t('pages.main.cancelButton')}</Button>
             <Button variant="contained" color="error" onClick={()=>{
-              fetch(`${API_URL}/shared-groups/${confirmDeleteShared?.owner}/${confirmDeleteShared?.id}/delete`, {method:'POST', credentials:'include'}).then(()=>{ loadSharedGroups(); setConfirmDeleteShared(null); });
+              fetchWithCsrf(`${API_URL}/shared-groups/${confirmDeleteShared?.owner}/${confirmDeleteShared?.id}/delete`, {method:'POST'}).then(()=>{ loadSharedGroups(); setConfirmDeleteShared(null); });
             }}>{t('pages.main.deleteButton')}</Button>
           </Box>
         </DialogContent>

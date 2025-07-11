@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const morgan = require('morgan');
 const sharp = require('sharp');
+const csrf = require('csurf');
 
 require('dotenv').config();
 
@@ -161,6 +162,7 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
+app.use(csrf());
 
 passport.serializeUser((user, done) => {
   done(null, user);
@@ -486,15 +488,15 @@ app.get('/config', (req, res) => {
 });
 
 app.get('/me', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({ user: req.user });
-  } else {
-    res.json(null);
-  }
+  const user = req.isAuthenticated() ? req.user : null;
+  res.json({ user, csrfToken: req.csrfToken() });
 });
 
 // Generic error handler to prevent uncaught OAuth errors from crashing the app
 app.use((err, req, res, next) => {
+  if (err.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({ error: 'invalid_csrf_token' });
+  }
   console.error(err.stack);
   res.status(500).json({ error: 'Internal Server Error' });
 });

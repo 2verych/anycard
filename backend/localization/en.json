@@ -45,6 +45,7 @@
     "limitGroups": "Group limit reached",
     "limitEmails": "Email limit exceeded",
     "uploadFailed": "Upload failed",
-    "fileTooLarge": "File too large"
+    "fileTooLarge": "File too large",
+    "invalidFileType": "Invalid file type"
   }
 }

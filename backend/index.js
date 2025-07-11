@@ -225,6 +225,13 @@ app.post('/upload', ensureAuthenticated, (req, res) => {
       console.error('Upload error:', err);
       return res.status(500).json({ error: 'Upload failed' });
     }
+    const allowedMimeTypes = ['image/jpeg', 'image/png'];
+    if (!req.file || !allowedMimeTypes.includes(req.file.mimetype)) {
+      if (req.file && req.file.path) {
+        try { fs.unlinkSync(req.file.path); } catch {}
+      }
+      return res.status(400).json({ error: 'invalid_file_type' });
+    }
     try {
       const userDir = getUserDir(req);
       ensureDirs(userDir);

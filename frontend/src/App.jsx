@@ -237,6 +237,7 @@ function App() {
       const data = await resp.json().catch(() => ({}));
       if (data.error === 'limit_cards') showError(t('errors.limitCards'));
       else if (data.error === 'file_too_large') showError(t('errors.fileTooLarge'));
+      else if (data.error === 'invalid_file_type') showError(t('errors.invalidFileType'));
       else showError(t('errors.uploadFailed'));
       return;
     }

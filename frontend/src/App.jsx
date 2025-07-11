@@ -131,7 +131,13 @@ function App() {
   const loadSharedGroups = () => {
     fetchWithCsrf(`${API_URL}/shared-groups`)
       .then(res => res.json())
-      .then(setSharedGroups);
+      .then(data => {
+        if (Array.isArray(data)) {
+          setSharedGroups(data);
+        } else {
+          setSharedGroups([]);
+        }
+      });
   };
 
   const showError = (msg) => { setErrorMsg(msg); };

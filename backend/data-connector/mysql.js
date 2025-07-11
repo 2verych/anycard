@@ -1,0 +1,20 @@
+// Placeholder connector for future MySQL storage implementation
+module.exports = {
+  getUploadsDir: () => '',
+  getUserDir: () => '',
+  ensureDirs: () => {},
+  ownerExists: () => false,
+  loadGroups: () => [],
+  saveGroups: () => {},
+  loadMeta: () => ({ comment: '', groups: ['default'] }),
+  saveMeta: () => {},
+  loadSharedState: () => ({ hidden: [], showInMy: [] }),
+  saveSharedState: () => {},
+  loadRejections: () => ({}),
+  saveRejections: () => {},
+  loadUsage: () => ({}),
+  saveUsage: () => {},
+  allUserDirs: () => [],
+  loadSharedUsers: () => ({}),
+  saveSharedUsers: () => {},
+};

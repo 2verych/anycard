@@ -100,7 +100,14 @@ function App() {
 
   const loadSharedCards = (owner, id) => {
     fetchWithCsrf(`${API_URL}/shared-cards/${owner}/${id}`)
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data.error === 'owner_not_found') showError(t('errors.ownerNotFound'));
+          return [];
+        }
+        return res.json();
+      })
       .then(setCards);
   };
 
@@ -474,9 +481,32 @@ function App() {
               <Box key={`${sg.owner}_${sg.id}`} sx={{ mb:1 }}>
                 <Box sx={{ display:'flex', alignItems:'center' }}>
                   <Typography sx={{ mr:2 }}>{sg.name} ({sg.count})</Typography>
-                  <FormControlLabel control={<Checkbox checked={sg.showInMy} onChange={e=>{
-                    fetchWithCsrf(`${API_URL}/shared-groups/${sg.owner}/${sg.id}/show`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({show:e.target.checked})}).then(loadSharedGroups);
-                  }} />} label={t('pages.main.showInMyGroups')} />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={sg.showInMy}
+                        onChange={e => {
+                          fetchWithCsrf(
+                            `${API_URL}/shared-groups/${sg.owner}/${sg.id}/show`,
+                            {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ show: e.target.checked }),
+                            }
+                          )
+                            .then(async res => {
+                              if (!res.ok) {
+                                const data = await res.json().catch(() => ({}));
+                                if (data.error === 'owner_not_found') showError(t('errors.ownerNotFound'));
+                                return;
+                              }
+                              loadSharedGroups();
+                            });
+                        }}
+                      />
+                    }
+                    label={t('pages.main.showInMyGroups')}
+                  />
                   <Button size="small" color="error" onClick={()=>{
                     setConfirmDeleteShared({owner: sg.owner, id: sg.id});
                   }}>{t('pages.main.deleteButton')}</Button>
@@ -627,8 +657,21 @@ function App() {
           <Box sx={{ textAlign:'right' }}>
             <Button onClick={()=>setConfirmDeleteShared(null)} sx={{ mr:1 }}>{t('pages.main.cancelButton')}</Button>
             <Button variant="contained" color="error" onClick={()=>{
-              fetchWithCsrf(`${API_URL}/shared-groups/${confirmDeleteShared?.owner}/${confirmDeleteShared?.id}/delete`, {method:'POST'}).then(()=>{ loadSharedGroups(); setConfirmDeleteShared(null); });
-            }}>{t('pages.main.deleteButton')}</Button>
+              fetchWithCsrf(
+                `${API_URL}/shared-groups/${confirmDeleteShared?.owner}/${confirmDeleteShared?.id}/delete`,
+                {method: 'POST'}
+              ).then(async res => {
+                if(!res.ok){
+                  const data = await res.json().catch(()=>({}));
+                  if(data.error==='owner_not_found') showError(t('errors.ownerNotFound'));
+                  return;
+                }
+                loadSharedGroups();
+                setConfirmDeleteShared(null);
+              });
+            }}>
+              {t('pages.main.deleteButton')}
+            </Button>
           </Box>
         </DialogContent>
       </Dialog>

@@ -56,6 +56,12 @@ function ensureDirs(dir) {
   fs.mkdirSync(path.join(dir, 'meta'), { recursive: true });
 }
 
+function ownerExists(owner) {
+  if (!validPathComponent(owner)) return false;
+  const dir = path.join(__dirname, 'uploads', owner);
+  return fs.existsSync(dir);
+}
+
 function groupsPath(dir) {
   return path.join(dir, 'groups.json');
 }
@@ -436,14 +442,16 @@ app.post('/shared-groups/:owner/:id/delete', ensureAuthenticated, (req, res) => 
   if (!validPathComponent(req.params.owner)) {
     return res.status(400).json({ error: 'invalid_input' });
   }
+  const ownerDir = path.join(__dirname, 'uploads', req.params.owner);
+  if (!ownerExists(req.params.owner)) {
+    return res.status(404).json({ error: 'owner_not_found' });
+  }
   const email = req.user.emails[0].value;
   const myDir = getUserDir(req);
   const state = loadSharedState(myDir);
   const key = req.params.owner + '/' + req.params.id;
   if (!state.hidden.includes(key)) state.hidden.push(key);
   saveSharedState(myDir, state);
-  const ownerDir = path.join(__dirname, 'uploads', req.params.owner);
-  ensureDirs(ownerDir);
   const rej = loadRejections(ownerDir);
   if (!rej[req.params.id]) rej[req.params.id] = [];
   if (!rej[req.params.id].includes(email)) rej[req.params.id].push(email);
@@ -455,6 +463,10 @@ app.post('/shared-groups/:owner/:id/show', ensureAuthenticated, (req, res) => {
   if (!validPathComponent(req.params.owner)) {
     return res.status(400).json({ error: 'invalid_input' });
   }
+  const ownerDir = path.join(__dirname, 'uploads', req.params.owner);
+  if (!ownerExists(req.params.owner)) {
+    return res.status(404).json({ error: 'owner_not_found' });
+  }
   const myDir = getUserDir(req);
   const state = loadSharedState(myDir);
   const key = req.params.owner + '/' + req.params.id;
@@ -462,8 +474,6 @@ app.post('/shared-groups/:owner/:id/show', ensureAuthenticated, (req, res) => {
   if (req.body.show) state.showInMy.push(key);
   saveSharedState(myDir, state);
   const email = req.user.emails[0].value;
-  const ownerDir = path.join(__dirname, 'uploads', req.params.owner);
-  ensureDirs(ownerDir);
   const usage = loadUsage(ownerDir);
   if (!usage[req.params.id]) usage[req.params.id] = [];
   usage[req.params.id] = usage[req.params.id].filter(e => e !== email);
@@ -478,7 +488,9 @@ app.get('/shared-cards/:owner/:group', ensureAuthenticated, (req, res) => {
   }
   const email = req.user.emails[0].value;
   const ownerDir = path.join(__dirname, 'uploads', req.params.owner);
-  if (!fs.existsSync(ownerDir)) return res.json([]);
+  if (!ownerExists(req.params.owner)) {
+    return res.status(404).json({ error: 'owner_not_found' });
+  }
   const groups = loadGroups(ownerDir);
   const g = groups.find(x => x.id === req.params.group);
   if (!g || !(g.emails || []).includes(email)) return res.json([]);

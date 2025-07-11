@@ -46,6 +46,11 @@
     "limitEmails": "Слишком много адресов",
     "uploadFailed": "Ошибка загрузки",
     "fileTooLarge": "Слишком большой файл",
-    "ownerNotFound": "Владелец не найден"
+    "ownerNotFound": "Владелец не найден",
+    "invalidFileType": "Недопустимый тип файла",
+    "unauthorized": "Нет доступа",
+    "invalidInput": "Неверные данные",
+    "notFound": "Не найдено",
+    "internalError": "Внутренняя ошибка сервера"
   }
 }

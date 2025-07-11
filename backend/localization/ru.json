@@ -46,6 +46,10 @@
     "limitEmails": "Слишком много адресов",
     "uploadFailed": "Ошибка загрузки",
     "fileTooLarge": "Слишком большой файл",
-    "invalidFileType": "Недопустимый тип файла"
+    "invalidFileType": "Недопустимый тип файла",
+    "unauthorized": "Нет доступа",
+    "invalidInput": "Неверные данные",
+    "notFound": "Не найдено",
+    "internalError": "Внутренняя ошибка сервера"
   }
 }

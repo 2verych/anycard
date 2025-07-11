@@ -33,6 +33,9 @@ function App() {
   const [shareEmails, setShareEmails] = useState([]);
   const [shareInput, setShareInput] = useState('');
   const [sharedGroups, setSharedGroups] = useState([]);
+  useEffect(() => {
+    console.log('sharedGroups state', sharedGroups);
+  }, [sharedGroups]);
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedCards, setSelectedCards] = useState([]);
   const holdTimer = useRef(null);
@@ -131,7 +134,16 @@ function App() {
   const loadSharedGroups = () => {
     fetchWithCsrf(`${API_URL}/shared-groups`)
       .then(res => res.json())
-      .then(setSharedGroups);
+      .then(data => {
+        console.log('loadSharedGroups response', data);
+        if (Array.isArray(data)) {
+          setSharedGroups(data);
+          console.log('sharedGroups set', data);
+        } else {
+          console.warn('loadSharedGroups unexpected data', data);
+          setSharedGroups([]);
+        }
+      });
   };
 
   const showError = (msg) => { setErrorMsg(msg); };

@@ -45,6 +45,10 @@
     "limitGroups": "Group limit reached",
     "limitEmails": "Email limit exceeded",
     "uploadFailed": "Upload failed",
-    "fileTooLarge": "File too large"
+    "fileTooLarge": "File too large",
+    "unauthorized": "Unauthorized",
+    "invalidInput": "Invalid input",
+    "notFound": "Not found",
+    "internalError": "Internal server error"
   }
 }

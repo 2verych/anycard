@@ -46,6 +46,12 @@
     "limitEmails": "Email limit exceeded",
     "limitRequests": "Too many requests, please try again later.",
     "uploadFailed": "Upload failed",
-    "fileTooLarge": "File too large"
+    "fileTooLarge": "File too large",
+    "ownerNotFound": "Owner not found",
+    "invalidFileType": "Invalid file type",
+    "unauthorized": "Unauthorized",
+    "invalidInput": "Invalid input",
+    "notFound": "Not found",
+    "internalError": "Internal server error"
   }
 }

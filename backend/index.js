@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const morgan = require('morgan');
 const sharp = require('sharp');
+const rateLimit = require('express-rate-limit');
 
 require('dotenv').config();
 
@@ -182,9 +183,19 @@ function ensureAuthenticated(req, res, next) {
   res.status(401).json({ error: 'Unauthorized' });
 }
 
-app.get('/auth/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  handler: (req, res) => {
+    res.status(429).json({ error: 'limit_requests' });
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-app.get('/auth/google/callback', (req, res, next) => {
+app.get('/auth/google', authLimiter, passport.authenticate('google', { scope: ['email', 'profile'] }));
+
+app.get('/auth/google/callback', authLimiter, (req, res, next) => {
   passport.authenticate('google', (err, user) => {
     if (err) {
       console.error('Google OAuth error:', err);

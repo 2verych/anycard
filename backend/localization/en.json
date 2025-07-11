@@ -46,6 +46,7 @@
     "limitEmails": "Email limit exceeded",
     "uploadFailed": "Upload failed",
     "fileTooLarge": "File too large",
+    "invalidFileType": "Invalid file type",
     "unauthorized": "Unauthorized",
     "invalidInput": "Invalid input",
     "notFound": "Not found",

@@ -217,7 +217,7 @@ passport.use(new GoogleStrategy({
 
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated()) { return next(); }
-  res.status(401).json({ error: 'Unauthorized' });
+  res.status(401).json({ error: 'unauthorized' });
 }
 
 app.get('/auth/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
@@ -261,7 +261,7 @@ app.post('/upload', ensureAuthenticated, (req, res) => {
         return res.status(400).json({ error: 'file_too_large' });
       }
       console.error('Upload error:', err);
-      return res.status(500).json({ error: 'Upload failed' });
+      return res.status(500).json({ error: 'upload_failed' });
     }
     try {
       const userDir = getUserDir(req);
@@ -286,7 +286,7 @@ app.post('/upload', ensureAuthenticated, (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Upload error:', err);
-    res.status(500).json({ error: 'Upload failed' });
+    res.status(500).json({ error: 'upload_failed' });
   }
   });
 });
@@ -362,7 +362,7 @@ app.delete('/groups/:id', ensureAuthenticated, (req, res) => {
   const userDir = getUserDir(req);
   const all = loadGroups(userDir);
   const target = all.find(g => g.id === req.params.id);
-  if (!target) return res.status(404).json({ error: 'Not found' });
+  if (!target) return res.status(404).json({ error: 'not_found' });
   const groups = all.filter(g => g.id !== req.params.id);
   saveGroups(userDir, groups);
   updateSharedUsers(req.user.emails[0].value, target.emails || [], []);
@@ -384,7 +384,7 @@ app.put('/groups/:id/emails', ensureAuthenticated, (req, res) => {
   }
   const groups = loadGroups(userDir);
   const idx = groups.findIndex(g => g.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  if (idx === -1) return res.status(404).json({ error: 'not_found' });
   const oldEmails = groups[idx].emails || [];
   groups[idx] = { ...groups[idx], emails };
   saveGroups(userDir, groups);
@@ -425,7 +425,7 @@ app.get('/shared-groups', ensureAuthenticated, (req, res) => {
 
 app.post('/shared-groups/:owner/:id/delete', ensureAuthenticated, (req, res) => {
   if (!validPathComponent(req.params.owner)) {
-    return res.status(400).json({ error: 'Invalid input' });
+    return res.status(400).json({ error: 'invalid_input' });
   }
   const email = req.user.emails[0].value;
   const myDir = getUserDir(req);
@@ -444,7 +444,7 @@ app.post('/shared-groups/:owner/:id/delete', ensureAuthenticated, (req, res) => 
 
 app.post('/shared-groups/:owner/:id/show', ensureAuthenticated, (req, res) => {
   if (!validPathComponent(req.params.owner)) {
-    return res.status(400).json({ error: 'Invalid input' });
+    return res.status(400).json({ error: 'invalid_input' });
   }
   const myDir = getUserDir(req);
   const state = loadSharedState(myDir);
@@ -465,7 +465,7 @@ app.post('/shared-groups/:owner/:id/show', ensureAuthenticated, (req, res) => {
 
 app.get('/shared-cards/:owner/:group', ensureAuthenticated, (req, res) => {
   if (!validPathComponent(req.params.owner)) {
-    return res.status(400).json({ error: 'Invalid input' });
+    return res.status(400).json({ error: 'invalid_input' });
   }
   const email = req.user.emails[0].value;
   const ownerDir = path.join(__dirname, 'uploads', req.params.owner);
@@ -493,7 +493,7 @@ app.get('/shared-cards/:owner/:group', ensureAuthenticated, (req, res) => {
 
 app.post('/cards/:file/groups/:groupId', ensureAuthenticated, (req, res) => {
   if (!validPathComponent(req.params.file)) {
-    return res.status(400).json({ error: 'Invalid input' });
+    return res.status(400).json({ error: 'invalid_input' });
   }
   const userDir = getUserDir(req);
   const meta = loadMeta(userDir, req.params.file);
@@ -508,11 +508,11 @@ app.post('/cards/:file/groups/:groupId', ensureAuthenticated, (req, res) => {
 
 app.delete('/cards/:file', ensureAuthenticated, (req, res) => {
   if (!validPathComponent(req.params.file)) {
-    return res.status(400).json({ error: 'Invalid input' });
+    return res.status(400).json({ error: 'invalid_input' });
   }
   const userDir = getUserDir(req);
   const file = path.join(userDir, req.params.file);
-  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Not found' });
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
   try {
     fs.unlinkSync(file);
   } catch {}
@@ -546,7 +546,7 @@ app.get('/me', (req, res) => {
 // Generic error handler to prevent uncaught OAuth errors from crashing the app
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Internal Server Error' });
+  res.status(500).json({ error: 'internal_error' });
 });
 
 app.listen(PORT, () => console.log('Server running on port', PORT));

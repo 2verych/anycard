@@ -44,6 +44,7 @@
     "limitCards": "Card limit reached",
     "limitGroups": "Group limit reached",
     "limitEmails": "Email limit exceeded",
+    "limitRequests": "Too many requests, please try again later.",
     "uploadFailed": "Upload failed",
     "fileTooLarge": "File too large",
     "ownerNotFound": "Owner not found",

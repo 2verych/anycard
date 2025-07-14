@@ -8,6 +8,7 @@ const config = {
   database: process.env.MYSQL_DATABASE || 'anycard',
 };
 
+
 let connection;
 
 function connect() {
@@ -286,3 +287,4 @@ module.exports = {
   listFiles,
   deleteFile,
 };
+module.exports.config = config;

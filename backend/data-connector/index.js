@@ -7,4 +7,6 @@ if (type === 'mysql') {
   connector = require('./fs');
 }
 
+connector.type = type;
+
 module.exports = connector;

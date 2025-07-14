@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const BASE_DIR = path.join(__dirname, '..', 'uploads');
+const BASE_DIR = process.env.FS_BASE_DIR || path.join(__dirname, '..', 'uploads');
+const config = { baseDir: BASE_DIR };
 
 function getUploadsDir() {
   return BASE_DIR;
@@ -186,3 +187,4 @@ module.exports = {
   listFiles,
   deleteFile,
 };
+module.exports.config = config;

@@ -11,6 +11,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
 const dataService = require('./data-service');
+const dataConnector = require('./data-connector');
 
 function emailHash(email) {
   return crypto.createHash('sha256').update(process.env.SALT + email).digest('hex');
@@ -43,6 +44,14 @@ const MAX_CARDS = parseInt(process.env.MAX_CARDS) || 100;
 const MAX_GROUPS = parseInt(process.env.MAX_GROUPS) || 10;
 const MAX_SHARE_EMAILS = parseInt(process.env.MAX_SHARE_EMAILS) || 10;
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024;
+
+console.log('Data connector type:', dataConnector.type);
+if (dataConnector.type === 'mysql') {
+  const { host, port, user, database } = dataConnector.config;
+  console.log('MySQL config:', { host, port, user, database });
+} else {
+  console.log('FS config:', dataConnector.config);
+}
 
 function validPathComponent(name) {
   return typeof name === 'string' && !name.includes('..') && !name.includes('/') && !name.includes('\\');

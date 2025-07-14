@@ -280,6 +280,10 @@ app.get('/shared-groups', ensureAuthenticated, (req, res) => {
   const state = dataService.loadSharedState(email);
   const result = [];
   const owners = getSharedOwners(email);
+
+  console.log('[shared-groups] user:', email);
+  console.log('[shared-groups] owners:', owners);
+
   for (const dir of owners) {
     if (dir === email) continue;
     if (!dataService.ownerExists(dir)) continue;
@@ -290,6 +294,11 @@ app.get('/shared-groups', ensureAuthenticated, (req, res) => {
       card.groups.forEach(g => { if (counts[g] !== undefined) counts[g]++; });
     });
     const rejected = dataService.loadRejections(dir);
+
+    console.log('[shared-groups] owner', dir, 'groups', groups);
+    console.log('[shared-groups] owner', dir, 'counts', counts);
+    console.log('[shared-groups] owner', dir, 'rejected map', rejected);
+
     groups.forEach(g => {
       if ((g.emails || []).includes(email)) {
         const key = dir + '/' + g.id;
@@ -299,6 +308,9 @@ app.get('/shared-groups', ensureAuthenticated, (req, res) => {
       }
     });
   }
+
+  console.log('[shared-groups] result', result);
+
   res.json(result);
 });
 

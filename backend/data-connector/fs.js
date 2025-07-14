@@ -100,7 +100,8 @@ function allUserDirs() {
 }
 
 function sharedUsersPath() {
-  return path.join(BASE_DIR, 'shared-users.json');
+  // keep shared users mapping next to backend files for backward compatibility
+  return path.join(__dirname, '..', 'shared-users.json');
 }
 function loadSharedUsers() {
   const file = sharedUsersPath();

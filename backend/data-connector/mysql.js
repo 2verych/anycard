@@ -101,44 +101,49 @@ function listFiles(owner) {
 
 function saveFile(owner, file, buffer) {
   connect();
+  console.log('mysql: saveFile', owner, file, buffer.length);
+  const hex = buffer.toString('hex');
   const exists = connection.query(
     'SELECT 1 FROM files WHERE owner=? AND filename=?',
     [owner, file]
   );
   if (exists.length === 0) {
     connection.query(
-      'INSERT INTO files(owner, filename, data) VALUES (?, ?, ?)',
-      [owner, file, buffer]
+      'INSERT INTO files(owner, filename, data) VALUES (?, ?, UNHEX(?))',
+      [owner, file, hex]
     );
   } else {
     connection.query(
-      'UPDATE files SET data=? WHERE owner=? AND filename=?',
-      [buffer, owner, file]
+      'UPDATE files SET data=UNHEX(?) WHERE owner=? AND filename=?',
+      [hex, owner, file]
     );
   }
 }
 
 function savePreview(owner, file, buffer) {
   connect();
+  console.log('mysql: savePreview', owner, file, buffer.length);
+  const hex = buffer.toString('hex');
   const exists = connection.query(
     'SELECT 1 FROM files WHERE owner=? AND filename=?',
     [owner, file]
   );
   if (exists.length === 0) {
     connection.query(
-      'INSERT INTO files(owner, filename, preview) VALUES (?, ?, ?)',
-      [owner, file, buffer]
+      'INSERT INTO files(owner, filename, preview) VALUES (?, ?, UNHEX(?))',
+      [owner, file, hex]
     );
   } else {
     connection.query(
-      'UPDATE files SET preview=? WHERE owner=? AND filename=?',
-      [buffer, owner, file]
+      'UPDATE files SET preview=UNHEX(?) WHERE owner=? AND filename=?',
+      [hex, owner, file]
     );
   }
 }
 
 function loadFile(owner, file, preview = false) {
   connect();
+  console.log('mysql: loadFile', owner, file, preview);
   const rows = connection.query(
     `SELECT ${preview ? 'preview' : 'data'} AS data FROM files WHERE owner=? AND filename=?`,
     [owner, file]
@@ -149,6 +154,7 @@ function loadFile(owner, file, preview = false) {
 
 function deleteFile(owner, file) {
   connect();
+  console.log('mysql: deleteFile', owner, file);
   connection.query('DELETE FROM files WHERE owner=? AND filename=?', [owner, file]);
 }
 

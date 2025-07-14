@@ -46,6 +46,7 @@ const MAX_CARDS = parseInt(process.env.MAX_CARDS) || 100;
 const MAX_GROUPS = parseInt(process.env.MAX_GROUPS) || 10;
 const MAX_SHARE_EMAILS = parseInt(process.env.MAX_SHARE_EMAILS) || 10;
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024;
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(e => e);
 
 console.log('Data connector type:', dataConnector.type);
 if (dataConnector.type === 'mysql') {
@@ -159,6 +160,11 @@ passport.use(new GoogleStrategy({
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated()) { return next(); }
   res.status(401).json({ error: 'unauthorized' });
+}
+
+function ensureAdmin(req, res, next) {
+  if (req.isAuthenticated() && ADMIN_EMAILS.includes(getUserEmail(req))) return next();
+  res.status(403).json({ error: 'forbidden' });
 }
 
 const authLimiter = rateLimit({
@@ -484,6 +490,18 @@ app.get('/files/:owner/:file', ensureAuthenticated, (req, res) => {
   serveFile(req, res, false);
 });
 
+app.post('/admin/reset', ensureAdmin, (req, res) => {
+  try {
+    if (typeof dataConnector.reset === 'function') {
+      dataConnector.reset();
+    }
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Reset connector failed:', e);
+    res.status(500).json({ error: 'reset_failed' });
+  }
+});
+
 app.get('/localization', (req, res) => {
   res.json(loadLocalization());
 });
@@ -494,7 +512,9 @@ app.get('/config', (req, res) => {
 
 app.get('/me', (req, res) => {
   const user = req.isAuthenticated() ? req.user : null;
-  res.json({ user, csrfToken: req.csrfToken() });
+  const email = user?.emails?.[0]?.value;
+  const admin = email ? ADMIN_EMAILS.includes(email) : false;
+  res.json({ user, csrfToken: req.csrfToken(), admin });
 });
 
 // Generic error handler to prevent uncaught OAuth errors from crashing the app

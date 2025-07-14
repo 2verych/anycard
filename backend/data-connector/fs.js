@@ -161,6 +161,13 @@ function deleteFile(dir, file) {
   } catch {}
 }
 
+function reset() {
+  fs.rmSync(BASE_DIR, { recursive: true, force: true });
+  fs.mkdirSync(BASE_DIR, { recursive: true });
+  try { fs.unlinkSync(sharedUsersPath()); } catch {}
+  try { fs.unlinkSync(userInfoPath()); } catch {}
+}
+
 module.exports = {
   getUploadsDir,
   getUserDir,
@@ -186,5 +193,6 @@ module.exports = {
   loadFile,
   listFiles,
   deleteFile,
+  reset,
 };
 module.exports.config = config;

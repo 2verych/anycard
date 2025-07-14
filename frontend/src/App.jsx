@@ -68,15 +68,17 @@ function App() {
 
   useEffect(() => {
     fetch(`${API_URL}/config`)
-      .then(res => res.json())
-      .then(setConfig);
+      .then(res => (res.ok ? res.json() : {}))
+      .then(setConfig)
+      .catch(() => setConfig({ previewSize: 128 }));
     fetch(`${API_URL}/me`, { credentials: 'include' })
-      .then(res => res.json())
+      .then(res => (res.ok ? res.json() : {}))
       .then(data => {
-        setCsrfToken(data.csrfToken);
+        setCsrfToken(data.csrfToken || '');
         setIsAdmin(!!data.admin);
         if (data && data.user) setUser(data.user);
-      });
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -99,8 +101,13 @@ function App() {
 
   const loadMyCards = () => {
     fetchWithCsrf(`${API_URL}/cards`)
-      .then(res => res.json())
-      .then(data => { setCards(data); setMyCards(data); });
+      .then(res => (res.ok ? res.json() : []))
+      .catch(() => [])
+      .then(data => {
+        const list = Array.isArray(data) ? data : [];
+        setCards(list);
+        setMyCards(list);
+      });
   };
 
   const loadSharedCards = (owner, id) => {
@@ -113,15 +120,18 @@ function App() {
         }
         return res.json();
       })
-      .then(setCards);
+      .catch(() => [])
+      .then(data => setCards(Array.isArray(data) ? data : []));
   };
 
   const loadGroups = () => {
     fetchWithCsrf(`${API_URL}/groups`)
-      .then(res => res.json())
+      .then(res => (res.ok ? res.json() : []))
+      .catch(() => [])
       .then(data => {
-        setGroups(data.map(g => ({ ...g, originalName: g.name })));
-        if (!data.find(g => g.id === selectedGroup)) {
+        const list = Array.isArray(data) ? data : [];
+        setGroups(list.map(g => ({ ...g, originalName: g.name })));
+        if (!list.find(g => g.id === selectedGroup)) {
           setSelectedGroup('default');
         }
       });
@@ -135,7 +145,8 @@ function App() {
 
   const loadSharedGroups = () => {
     fetchWithCsrf(`${API_URL}/shared-groups`)
-      .then(res => res.json())
+      .then(res => (res.ok ? res.json() : []))
+      .catch(() => [])
       .then(data => {
         console.log('loadSharedGroups response', data);
         if (Array.isArray(data)) {

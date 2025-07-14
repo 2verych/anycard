@@ -134,6 +134,14 @@ passport.use(new GoogleStrategy({
   callbackURL: '/auth/google/callback',
 }, (accessToken, refreshToken, profile, done) => {
   profile.hash = emailHash(profile.emails[0].value);
+  try {
+    const info = dataService.loadUserInfo();
+    const id = profile.hash;
+    info[id] = { name: profile.displayName, email: profile.emails[0].value };
+    dataService.saveUserInfo(info);
+  } catch (e) {
+    console.error('Failed to save user info', e);
+  }
   return done(null, profile);
 }));
 
@@ -302,6 +310,7 @@ app.get('/shared-groups', ensureAuthenticated, (req, res) => {
   const state = dataService.loadSharedState(uid);
   const result = [];
   const owners = getSharedOwners(email);
+  const info = dataService.loadUserInfo();
 
   console.log('[shared-groups] user:', email);
   console.log('[shared-groups] owners:', owners);
@@ -325,7 +334,8 @@ app.get('/shared-groups', ensureAuthenticated, (req, res) => {
       if ((g.emails || []).includes(email)) {
         const key = dir + '/' + g.id;
         if (!state.hidden.includes(key)) {
-          result.push({ owner: dir, id: g.id, name: g.name, count: counts[g.id] || 0, showInMy: state.showInMy.includes(key), rejected: (rejected[g.id] || []).includes(email) });
+          const ownerName = (info[dir]?.name || info[dir]?.email || dir);
+          result.push({ owner: dir, ownerName, id: g.id, name: g.name, count: counts[g.id] || 0, showInMy: state.showInMy.includes(key), rejected: (rejected[g.id] || []).includes(email) });
         }
       }
     });

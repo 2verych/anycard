@@ -134,6 +134,8 @@ module.exports = {
   saveSharedState,
   loadSharedUsers: dataConnector.loadSharedUsers,
   saveSharedUsers: dataConnector.saveSharedUsers,
+  loadUserInfo: dataConnector.loadUserInfo,
+  saveUserInfo: dataConnector.saveUserInfo,
   ownerExists: dataConnector.ownerExists,
   allOwners: dataConnector.allUserDirs,
   ensureUser(uid) {

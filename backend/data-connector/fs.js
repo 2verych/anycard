@@ -112,6 +112,18 @@ function saveSharedUsers(data) {
   fs.writeFileSync(sharedUsersPath(), JSON.stringify(data, null, 2));
 }
 
+function userInfoPath() {
+  return path.join(__dirname, '..', 'users.json');
+}
+function loadUserInfo() {
+  const file = userInfoPath();
+  if (!fs.existsSync(file)) return {};
+  try { return JSON.parse(fs.readFileSync(file)); } catch { return {}; }
+}
+function saveUserInfo(data) {
+  fs.writeFileSync(userInfoPath(), JSON.stringify(data, null, 2));
+}
+
 module.exports = {
   getUploadsDir,
   getUserDir,
@@ -130,4 +142,6 @@ module.exports = {
   allUserDirs,
   loadSharedUsers,
   saveSharedUsers,
+  loadUserInfo,
+  saveUserInfo,
 };

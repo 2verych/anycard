@@ -423,7 +423,44 @@ app.delete('/cards/:file', ensureAuthenticated, (req, res) => {
   res.json({ success: true });
 });
 
-app.use('/uploads', ensureAuthenticated, dataService.uploadsMiddleware());
+
+function canAccessFile(owner, file, req) {
+  const uid = getUserId(req);
+  const email = getUserEmail(req);
+  if (owner === uid) return true;
+  const meta = dataService.loadMeta(owner, file);
+  const groups = dataService.loadGroups(owner);
+  for (const gid of meta.groups || []) {
+    const g = groups.find(x => x.id === gid);
+    if (g && (g.emails || []).includes(email)) return true;
+  }
+  return false;
+}
+
+function serveFile(req, res, preview) {
+  if (!validPathComponent(req.params.owner) || !validPathComponent(req.params.file)) {
+    return res.status(400).json({ error: 'invalid_input' });
+  }
+  if (!dataService.ownerExists(req.params.owner)) {
+    return res.status(404).json({ error: 'owner_not_found' });
+  }
+  if (!canAccessFile(req.params.owner, req.params.file, req)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  const fp = dataService.filePath(req.params.owner, req.params.file, preview);
+  if (!fs.existsSync(fp)) {
+    return res.status(404).json({ error: 'not_found' });
+  }
+  res.sendFile(path.resolve(fp));
+}
+
+app.get('/files/:owner/previews/:file', ensureAuthenticated, (req, res) => {
+  serveFile(req, res, true);
+});
+
+app.get('/files/:owner/:file', ensureAuthenticated, (req, res) => {
+  serveFile(req, res, false);
+});
 
 app.get('/localization', (req, res) => {
   res.json(loadLocalization());

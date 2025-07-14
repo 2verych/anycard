@@ -11,6 +11,11 @@ function uploadsMiddleware() {
   return express.static(dataConnector.getUploadsDir());
 }
 
+function filePath(uid, file, preview = false) {
+  const dir = dataConnector.getUserDir(uid);
+  return preview ? path.join(dir, 'previews', file) : path.join(dir, file);
+}
+
 function addCard(uid, file, comment, groups, originalEmail) {
   const userDir = dataConnector.getUserDir(uid);
   dataConnector.ensureDirs(userDir);
@@ -46,8 +51,8 @@ function listCards(uid) {
     const meta = dataConnector.loadMeta(userDir, f);
     return {
       filename: f,
-      original: `/uploads/${uid}/${f}`,
-      preview: `/uploads/${uid}/previews/${f}`,
+      original: `/files/${uid}/${f}`,
+      preview: `/files/${uid}/previews/${f}`,
       comment: meta.comment,
       groups: meta.groups,
       owner: uid,
@@ -134,4 +139,5 @@ module.exports = {
   ensureUser(uid) {
     dataConnector.ensureDirs(dataConnector.getUserDir(uid));
   },
+  filePath,
 };

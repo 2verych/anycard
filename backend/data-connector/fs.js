@@ -164,6 +164,8 @@ function deleteFile(dir, file) {
 function reset() {
   fs.rmSync(BASE_DIR, { recursive: true, force: true });
   fs.mkdirSync(BASE_DIR, { recursive: true });
+  try { fs.unlinkSync(sharedUsersPath()); } catch {}
+  try { fs.unlinkSync(userInfoPath()); } catch {}
 }
 
 module.exports = {

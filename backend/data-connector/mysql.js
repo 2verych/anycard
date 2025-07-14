@@ -101,6 +101,8 @@ function ensureTables() {
 
 function reset() {
   connect();
+  connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``);
+  connection.query(`USE \`${config.database}\``);
   connection.query(
     'DROP TABLE IF EXISTS file_groups, files, groups, group_emails, shared_state_hidden, shared_state_show, rejections, usage_stats, shared_users, user_info'
   );

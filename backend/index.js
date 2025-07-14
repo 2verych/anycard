@@ -457,11 +457,12 @@ function serveFile(req, res, preview) {
   if (!canAccessFile(req.params.owner, req.params.file, req)) {
     return res.status(403).json({ error: 'forbidden' });
   }
-  const fp = dataService.filePath(req.params.owner, req.params.file, preview);
-  if (!fs.existsSync(fp)) {
+  const buffer = dataService.loadFile(req.params.owner, req.params.file, preview);
+  if (!buffer) {
     return res.status(404).json({ error: 'not_found' });
   }
-  res.sendFile(path.resolve(fp));
+  res.type(path.extname(req.params.file));
+  res.send(buffer);
 }
 
 app.get('/files/:owner/previews/:file', ensureAuthenticated, (req, res) => {

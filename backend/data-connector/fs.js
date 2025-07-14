@@ -124,6 +124,42 @@ function saveUserInfo(data) {
   fs.writeFileSync(userInfoPath(), JSON.stringify(data, null, 2));
 }
 
+function saveFile(dir, file, buffer) {
+  fs.writeFileSync(path.join(dir, file), buffer);
+}
+
+function savePreview(dir, file, buffer) {
+  fs.writeFileSync(path.join(dir, 'previews', file), buffer);
+}
+
+function loadFile(dir, file, preview = false) {
+  const fp = preview ? path.join(dir, 'previews', file) : path.join(dir, file);
+  if (!fs.existsSync(fp)) return null;
+  return fs.readFileSync(fp);
+}
+
+function listFiles(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter(
+      (f) =>
+        !f.endsWith('.txt') && f !== 'previews' && f !== 'meta' && !f.endsWith('.json')
+    );
+}
+
+function deleteFile(dir, file) {
+  try {
+    fs.unlinkSync(path.join(dir, file));
+  } catch {}
+  try {
+    fs.unlinkSync(path.join(dir, 'previews', file));
+  } catch {}
+  try {
+    fs.unlinkSync(path.join(dir, 'meta', file + '.json'));
+  } catch {}
+}
+
 module.exports = {
   getUploadsDir,
   getUserDir,
@@ -144,4 +180,9 @@ module.exports = {
   saveSharedUsers,
   loadUserInfo,
   saveUserInfo,
+  saveFile,
+  savePreview,
+  loadFile,
+  listFiles,
+  deleteFile,
 };

@@ -101,29 +101,52 @@ function listFiles(owner) {
 
 function saveFile(owner, file, buffer) {
   connect();
-  const exists = connection.query('SELECT 1 FROM files WHERE owner=? AND filename=?', [owner, file]);
+  const data = buffer.toString('base64');
+  const exists = connection.query(
+    'SELECT 1 FROM files WHERE owner=? AND filename=?',
+    [owner, file]
+  );
   if (exists.length === 0) {
-    connection.query('INSERT INTO files(owner, filename, data) VALUES (?, ?, ?)', [owner, file, buffer]);
+    connection.query(
+      'INSERT INTO files(owner, filename, data) VALUES (?, ?, ?)',
+      [owner, file, data]
+    );
   } else {
-    connection.query('UPDATE files SET data=? WHERE owner=? AND filename=?', [buffer, owner, file]);
+    connection.query(
+      'UPDATE files SET data=? WHERE owner=? AND filename=?',
+      [data, owner, file]
+    );
   }
 }
 
 function savePreview(owner, file, buffer) {
   connect();
-  const exists = connection.query('SELECT 1 FROM files WHERE owner=? AND filename=?', [owner, file]);
+  const data = buffer.toString('base64');
+  const exists = connection.query(
+    'SELECT 1 FROM files WHERE owner=? AND filename=?',
+    [owner, file]
+  );
   if (exists.length === 0) {
-    connection.query('INSERT INTO files(owner, filename, preview) VALUES (?, ?, ?)', [owner, file, buffer]);
+    connection.query(
+      'INSERT INTO files(owner, filename, preview) VALUES (?, ?, ?)',
+      [owner, file, data]
+    );
   } else {
-    connection.query('UPDATE files SET preview=? WHERE owner=? AND filename=?', [buffer, owner, file]);
+    connection.query(
+      'UPDATE files SET preview=? WHERE owner=? AND filename=?',
+      [data, owner, file]
+    );
   }
 }
 
 function loadFile(owner, file, preview = false) {
   connect();
-  const rows = connection.query(`SELECT ${preview ? 'preview' : 'data'} AS data FROM files WHERE owner=? AND filename=?`, [owner, file]);
-  if (!rows.length) return null;
-  return rows[0].data || null;
+  const rows = connection.query(
+    `SELECT ${preview ? 'preview' : 'data'} AS data FROM files WHERE owner=? AND filename=?`,
+    [owner, file]
+  );
+  if (!rows.length || !rows[0].data) return null;
+  return Buffer.from(rows[0].data, 'base64');
 }
 
 function deleteFile(owner, file) {

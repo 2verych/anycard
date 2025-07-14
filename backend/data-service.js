@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
+const crypto = require('crypto');
 const dataConnector = require('./data-connector');
 
 const PREVIEW_SIZE = parseInt(process.env.PREVIEW_SIZE) || 128;
@@ -10,10 +11,13 @@ function uploadsMiddleware() {
   return express.static(dataConnector.getUploadsDir());
 }
 
-function addCard(email, file, comment, groups) {
-  const userDir = dataConnector.getUserDir(email);
+function addCard(uid, file, comment, groups, originalEmail) {
+  const userDir = dataConnector.getUserDir(uid);
   dataConnector.ensureDirs(userDir);
-  const filename = Date.now() + path.extname(file.originalname);
+  const hash = crypto.createHash('sha256')
+    .update(process.env.SALT + Date.now() + Math.random() + file.originalname)
+    .digest('hex');
+  const filename = hash + path.extname(file.originalname).toLowerCase();
   const dest = path.join(userDir, filename);
   fs.writeFileSync(dest, file.buffer);
   const previewPath = path.join(userDir, 'previews', filename);
@@ -21,13 +25,13 @@ function addCard(email, file, comment, groups) {
     .resize(PREVIEW_SIZE)
     .toFile(previewPath)
     .then(() => {
-      dataConnector.saveMeta(userDir, filename, { comment, groups });
+      dataConnector.saveMeta(userDir, filename, { comment, groups, originalName: file.originalname, size: file.size, email: originalEmail });
       return { filename };
     });
 }
 
-function listCards(email) {
-  const userDir = dataConnector.getUserDir(email);
+function listCards(uid) {
+  const userDir = dataConnector.getUserDir(uid);
   if (!fs.existsSync(userDir)) return [];
   const files = fs
     .readdirSync(userDir)
@@ -42,17 +46,19 @@ function listCards(email) {
     const meta = dataConnector.loadMeta(userDir, f);
     return {
       filename: f,
-      original: `/uploads/${email}/${f}`,
-      preview: `/uploads/${email}/previews/${f}`,
+      original: `/uploads/${uid}/${f}`,
+      preview: `/uploads/${uid}/previews/${f}`,
       comment: meta.comment,
       groups: meta.groups,
-      owner: email,
+      owner: uid,
+      originalName: meta.originalName,
+      size: meta.size,
     };
   });
 }
 
-function deleteCard(email, filename) {
-  const userDir = dataConnector.getUserDir(email);
+function deleteCard(uid, filename) {
+  const userDir = dataConnector.getUserDir(uid);
   try {
     fs.unlinkSync(path.join(userDir, filename));
   } catch {}
@@ -64,46 +70,46 @@ function deleteCard(email, filename) {
   } catch {}
 }
 
-function loadMeta(email, file) {
-  const dir = dataConnector.getUserDir(email);
+function loadMeta(uid, file) {
+  const dir = dataConnector.getUserDir(uid);
   return dataConnector.loadMeta(dir, file);
 }
 
-function saveMeta(email, file, meta) {
-  const dir = dataConnector.getUserDir(email);
+function saveMeta(uid, file, meta) {
+  const dir = dataConnector.getUserDir(uid);
   dataConnector.saveMeta(dir, file, meta);
 }
 
-function loadGroups(email) {
-  return dataConnector.loadGroups(dataConnector.getUserDir(email));
+function loadGroups(uid) {
+  return dataConnector.loadGroups(dataConnector.getUserDir(uid));
 }
 
-function saveGroups(email, groups) {
-  dataConnector.saveGroups(dataConnector.getUserDir(email), groups);
+function saveGroups(uid, groups) {
+  dataConnector.saveGroups(dataConnector.getUserDir(uid), groups);
 }
 
-function loadRejections(email) {
-  return dataConnector.loadRejections(dataConnector.getUserDir(email));
+function loadRejections(uid) {
+  return dataConnector.loadRejections(dataConnector.getUserDir(uid));
 }
 
-function saveRejections(email, data) {
-  dataConnector.saveRejections(dataConnector.getUserDir(email), data);
+function saveRejections(uid, data) {
+  dataConnector.saveRejections(dataConnector.getUserDir(uid), data);
 }
 
-function loadUsage(email) {
-  return dataConnector.loadUsage(dataConnector.getUserDir(email));
+function loadUsage(uid) {
+  return dataConnector.loadUsage(dataConnector.getUserDir(uid));
 }
 
-function saveUsage(email, data) {
-  dataConnector.saveUsage(dataConnector.getUserDir(email), data);
+function saveUsage(uid, data) {
+  dataConnector.saveUsage(dataConnector.getUserDir(uid), data);
 }
 
-function loadSharedState(email) {
-  return dataConnector.loadSharedState(dataConnector.getUserDir(email));
+function loadSharedState(uid) {
+  return dataConnector.loadSharedState(dataConnector.getUserDir(uid));
 }
 
-function saveSharedState(email, data) {
-  dataConnector.saveSharedState(dataConnector.getUserDir(email), data);
+function saveSharedState(uid, data) {
+  dataConnector.saveSharedState(dataConnector.getUserDir(uid), data);
 }
 
 module.exports = {
@@ -125,7 +131,7 @@ module.exports = {
   saveSharedUsers: dataConnector.saveSharedUsers,
   ownerExists: dataConnector.ownerExists,
   allOwners: dataConnector.allUserDirs,
-  ensureUser(email) {
-    dataConnector.ensureDirs(dataConnector.getUserDir(email));
+  ensureUser(uid) {
+    dataConnector.ensureDirs(dataConnector.getUserDir(uid));
   },
 };

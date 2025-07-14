@@ -6,16 +6,33 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
 const dataService = require('./data-service');
+
+function emailHash(email) {
+  return crypto.createHash('sha256').update(process.env.SALT + email).digest('hex');
+}
+
+function getUserId(req) {
+  return req.user.hash;
+}
+
+function getUserEmail(req) {
+  return req.user.emails[0].value;
+}
 
 
 require('dotenv').config();
 
 if (!process.env.SESSION_SECRET) {
   console.error('SESSION_SECRET is required');
+  process.exit(1);
+}
+if (!process.env.SALT) {
+  console.error('SALT is required');
   process.exit(1);
 }
 
@@ -65,12 +82,12 @@ function calculateUsage(owner) {
 }
 
 
-function updateSharedUsers(owner, oldEmails, newEmails) {
+function updateSharedUsers(ownerId, oldEmails, newEmails) {
   const data = dataService.loadSharedUsers();
   for (const email of oldEmails) {
     if (!newEmails.includes(email)) {
       if (data[email]) {
-        data[email] = data[email].filter(o => o !== owner);
+        data[email] = data[email].filter(o => o !== ownerId);
         if (data[email].length === 0) delete data[email];
       }
     }
@@ -78,7 +95,7 @@ function updateSharedUsers(owner, oldEmails, newEmails) {
   for (const email of newEmails) {
     if (!oldEmails.includes(email)) {
       if (!data[email]) data[email] = [];
-      if (!data[email].includes(owner)) data[email].push(owner);
+      if (!data[email].includes(ownerId)) data[email].push(ownerId);
     }
   }
   dataService.saveSharedUsers(data);
@@ -116,6 +133,7 @@ passport.use(new GoogleStrategy({
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: '/auth/google/callback',
 }, (accessToken, refreshToken, profile, done) => {
+  profile.hash = emailHash(profile.emails[0].value);
   return done(null, profile);
 }));
 
@@ -174,8 +192,9 @@ app.post('/upload', ensureAuthenticated, (req, res) => {
       return res.status(400).json({ error: 'invalid_file_type' });
     }
     try {
-    const email = req.user.emails[0].value;
-    const existing = dataService.listCards(email);
+    const email = getUserEmail(req);
+    const uid = getUserId(req);
+    const existing = dataService.listCards(uid);
     if (existing.length >= MAX_CARDS) {
       return res.status(400).json({ error: 'limit_cards' });
     }
@@ -185,7 +204,7 @@ app.post('/upload', ensureAuthenticated, (req, res) => {
     try { groups = JSON.parse(req.body.groups); } catch {}
     if (!Array.isArray(groups) || groups.length === 0) groups = ['default'];
 
-    await dataService.addCard(email, req.file, comment, groups);
+    await dataService.addCard(uid, req.file, comment, groups, email);
 
     res.json({ success: true });
   } catch (err) {
@@ -196,23 +215,24 @@ app.post('/upload', ensureAuthenticated, (req, res) => {
 });
 
 app.get('/cards', ensureAuthenticated, (req, res) => {
-  const email = req.user.emails[0].value;
-  res.json(dataService.listCards(email));
+  const uid = getUserId(req);
+  res.json(dataService.listCards(uid));
 });
 
 app.get('/groups', ensureAuthenticated, (req, res) => {
-  const email = req.user.emails[0].value;
-  dataService.ensureUser(email);
-  const groups = dataService.loadGroups(email);
-  const rejections = dataService.loadRejections(email);
-  const usageStored = dataService.loadUsage(email);
-  const usageDynamic = calculateUsage(email);
+  const uid = getUserId(req);
+  const email = getUserEmail(req);
+  dataService.ensureUser(uid);
+  const groups = dataService.loadGroups(uid);
+  const rejections = dataService.loadRejections(uid);
+  const usageStored = dataService.loadUsage(uid);
+  const usageDynamic = calculateUsage(uid);
   const usage = {};
   groups.forEach(g => {
     usage[g.id] = Array.from(new Set([...(usageStored[g.id] || []), ...(usageDynamic[g.id] || [])]));
   });
   const counts = Object.fromEntries(groups.map(g => [g.id, 0]));
-  const cards = dataService.listCards(email);
+  const cards = dataService.listCards(uid);
   cards.forEach(card => {
     card.groups.forEach(g => { if (counts[g] !== undefined) counts[g]++; });
   });
@@ -220,64 +240,66 @@ app.get('/groups', ensureAuthenticated, (req, res) => {
 });
 
 app.post('/groups', ensureAuthenticated, (req, res) => {
-  const email = req.user.emails[0].value;
-  const groups = dataService.loadGroups(email);
+  const uid = getUserId(req);
+  const groups = dataService.loadGroups(uid);
   if (groups.length >= MAX_GROUPS) {
     return res.status(400).json({ error: 'limit_groups' });
   }
   const id = Date.now().toString();
   const name = req.body.name || 'Group';
   groups.push({ id, name, emails: [] });
-  dataService.saveGroups(email, groups);
+  dataService.saveGroups(uid, groups);
   res.json({ id, name, emails: [] });
 });
 
 app.put('/groups/:id', ensureAuthenticated, (req, res) => {
-  const email = req.user.emails[0].value;
-  const groups = dataService.loadGroups(email).map(g => g.id === req.params.id ? { ...g, name: req.body.name } : g);
-  dataService.saveGroups(email, groups);
+  const uid = getUserId(req);
+  const groups = dataService.loadGroups(uid).map(g => g.id === req.params.id ? { ...g, name: req.body.name } : g);
+  dataService.saveGroups(uid, groups);
   res.json({ success: true });
 });
 
 app.delete('/groups/:id', ensureAuthenticated, (req, res) => {
-  const email = req.user.emails[0].value;
-  const all = dataService.loadGroups(email);
+  const uid = getUserId(req);
+  const all = dataService.loadGroups(uid);
   const target = all.find(g => g.id === req.params.id);
   if (!target) return res.status(404).json({ error: 'not_found' });
   const groups = all.filter(g => g.id !== req.params.id);
-  dataService.saveGroups(email, groups);
-  updateSharedUsers(email, target.emails || [], []);
-  const cards = dataService.listCards(email);
+  dataService.saveGroups(uid, groups);
+  updateSharedUsers(uid, target.emails || [], []);
+  const cards = dataService.listCards(uid);
   cards.forEach(card => {
     if (card.groups.includes(req.params.id)) {
-      const meta = dataService.loadMeta(email, card.filename);
+      const meta = dataService.loadMeta(uid, card.filename);
       meta.groups = meta.groups.filter(g => g !== req.params.id);
-      dataService.saveMeta(email, card.filename, meta);
+      dataService.saveMeta(uid, card.filename, meta);
     }
   });
   res.json({ success: true });
 });
 
 app.put('/groups/:id/emails', ensureAuthenticated, (req, res) => {
-  const emailOwner = req.user.emails[0].value;
+  const uid = getUserId(req);
+  const emailOwner = getUserEmail(req);
   const emails = req.body.emails || [];
   if (emails.length > MAX_SHARE_EMAILS) {
     return res.status(400).json({ error: 'limit_emails' });
   }
-  const groups = dataService.loadGroups(emailOwner);
+  const groups = dataService.loadGroups(uid);
   const idx = groups.findIndex(g => g.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'not_found' });
   const oldEmails = groups[idx].emails || [];
   groups[idx] = { ...groups[idx], emails };
-  dataService.saveGroups(emailOwner, groups);
-  updateSharedUsers(emailOwner, oldEmails, emails);
+  dataService.saveGroups(uid, groups);
+  updateSharedUsers(uid, oldEmails, emails);
   res.json({ success: true });
 });
 
 app.get('/shared-groups', ensureAuthenticated, (req, res) => {
-  const email = req.user.emails[0].value;
-  dataService.ensureUser(email);
-  const state = dataService.loadSharedState(email);
+  const uid = getUserId(req);
+  const email = getUserEmail(req);
+  dataService.ensureUser(uid);
+  const state = dataService.loadSharedState(uid);
   const result = [];
   const owners = getSharedOwners(email);
 
@@ -321,11 +343,12 @@ app.post('/shared-groups/:owner/:id/delete', ensureAuthenticated, (req, res) => 
   if (!dataService.ownerExists(req.params.owner)) {
     return res.status(404).json({ error: 'owner_not_found' });
   }
-  const email = req.user.emails[0].value;
-  const state = dataService.loadSharedState(email);
+  const uid = getUserId(req);
+  const email = getUserEmail(req);
+  const state = dataService.loadSharedState(uid);
   const key = req.params.owner + '/' + req.params.id;
   if (!state.hidden.includes(key)) state.hidden.push(key);
-  dataService.saveSharedState(email, state);
+  dataService.saveSharedState(uid, state);
   const rej = dataService.loadRejections(req.params.owner);
   if (!rej[req.params.id]) rej[req.params.id] = [];
   if (!rej[req.params.id].includes(email)) rej[req.params.id].push(email);
@@ -340,12 +363,13 @@ app.post('/shared-groups/:owner/:id/show', ensureAuthenticated, (req, res) => {
   if (!dataService.ownerExists(req.params.owner)) {
     return res.status(404).json({ error: 'owner_not_found' });
   }
-  const email = req.user.emails[0].value;
-  const state = dataService.loadSharedState(email);
+  const uid = getUserId(req);
+  const email = getUserEmail(req);
+  const state = dataService.loadSharedState(uid);
   const key = req.params.owner + '/' + req.params.id;
   state.showInMy = state.showInMy.filter(x => x !== key);
   if (req.body.show) state.showInMy.push(key);
-  dataService.saveSharedState(email, state);
+  dataService.saveSharedState(uid, state);
   const usage = dataService.loadUsage(req.params.owner);
   if (!usage[req.params.id]) usage[req.params.id] = [];
   usage[req.params.id] = usage[req.params.id].filter(e => e !== email);
@@ -358,7 +382,7 @@ app.get('/shared-cards/:owner/:group', ensureAuthenticated, (req, res) => {
   if (!validPathComponent(req.params.owner)) {
     return res.status(400).json({ error: 'invalid_input' });
   }
-  const email = req.user.emails[0].value;
+  const email = getUserEmail(req);
   if (!dataService.ownerExists(req.params.owner)) {
     return res.status(404).json({ error: 'owner_not_found' });
   }
@@ -375,14 +399,14 @@ app.post('/cards/:file/groups/:groupId', ensureAuthenticated, (req, res) => {
   if (!validPathComponent(req.params.file)) {
     return res.status(400).json({ error: 'invalid_input' });
   }
-  const email = req.user.emails[0].value;
-  const meta = dataService.loadMeta(email, req.params.file);
+  const uid = getUserId(req);
+  const meta = dataService.loadMeta(uid, req.params.file);
   if (meta.groups.includes(req.params.groupId)) {
     meta.groups = meta.groups.filter(g => g !== req.params.groupId);
   } else {
     meta.groups.push(req.params.groupId);
   }
-  dataService.saveMeta(email, req.params.file, meta);
+  dataService.saveMeta(uid, req.params.file, meta);
   res.json(meta);
 });
 
@@ -390,12 +414,12 @@ app.delete('/cards/:file', ensureAuthenticated, (req, res) => {
   if (!validPathComponent(req.params.file)) {
     return res.status(400).json({ error: 'invalid_input' });
   }
-  const email = req.user.emails[0].value;
-  const cards = dataService.listCards(email);
+  const uid = getUserId(req);
+  const cards = dataService.listCards(uid);
   if (!cards.find(c => c.filename === req.params.file)) {
     return res.status(404).json({ error: 'not_found' });
   }
-  dataService.deleteCard(email, req.params.file);
+  dataService.deleteCard(uid, req.params.file);
   res.json({ success: true });
 });
 

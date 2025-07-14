@@ -7,8 +7,8 @@ function getUploadsDir() {
   return BASE_DIR;
 }
 
-function getUserDir(email) {
-  return path.join(BASE_DIR, email);
+function getUserDir(id) {
+  return path.join(BASE_DIR, id);
 }
 
 function ensureDirs(dir) {

@@ -51,7 +51,7 @@ function ensureTables() {
     data JSON
   )`);
 
-  connection.query(`CREATE TABLE IF NOT EXISTS usage (
+  connection.query(`CREATE TABLE IF NOT EXISTS usage_stats (
     owner VARCHAR(255) PRIMARY KEY,
     data JSON
   )`);
@@ -213,7 +213,7 @@ function saveRejections(owner, data) {
 
 function loadUsage(owner) {
   connect();
-  const rows = connection.query('SELECT data FROM usage WHERE owner=?', [owner]);
+  const rows = connection.query('SELECT data FROM usage_stats WHERE owner=?', [owner]);
   if (!rows.length) return {};
   try { return JSON.parse(rows[0].data); } catch { return {}; }
 }
@@ -221,11 +221,11 @@ function loadUsage(owner) {
 function saveUsage(owner, data) {
   connect();
   const json = JSON.stringify(data);
-  const exists = connection.query('SELECT 1 FROM usage WHERE owner=?', [owner]);
+  const exists = connection.query('SELECT 1 FROM usage_stats WHERE owner=?', [owner]);
   if (exists.length === 0) {
-    connection.query('INSERT INTO usage(owner, data) VALUES (?, ?)', [owner, json]);
+    connection.query('INSERT INTO usage_stats(owner, data) VALUES (?, ?)', [owner, json]);
   } else {
-    connection.query('UPDATE usage SET data=? WHERE owner=?', [json, owner]);
+    connection.query('UPDATE usage_stats SET data=? WHERE owner=?', [json, owner]);
   }
 }
 

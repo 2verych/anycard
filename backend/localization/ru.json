@@ -10,7 +10,8 @@
         "yourCards": "Мои карты",
         "upload": "Загрузка",
         "groups": "Группы",
-        "shared": "Общие"
+        "shared": "Общие",
+        "admin": "Админ"
       },
       "groupLabel": "Группа",
       "noCards": "Нет загруженных карт.",
@@ -33,7 +34,9 @@
       "deleteSelectedQuestion": "Удалить выбранные карты?",
       "deleteGroupQuestion": "Удалить эту группу?",
       "removeSharedQuestion": "Удалить общую группу?",
-      "fileUploaded": "Файл загружен"
+      "fileUploaded": "Файл загружен",
+      "adminResetButton": "Сбросить данные",
+      "adminResetDone": "Данные сброшены"
     }
   },
   "errors": {

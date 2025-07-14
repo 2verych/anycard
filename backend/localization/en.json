@@ -10,7 +10,8 @@
         "yourCards": "Your Cards",
         "upload": "Upload",
         "groups": "Groups",
-        "shared": "Shared"
+        "shared": "Shared",
+        "admin": "Admin"
       },
       "groupLabel": "Group",
       "noCards": "No cards uploaded.",
@@ -33,7 +34,9 @@
       "deleteSelectedQuestion": "Delete selected card(s)?",
       "deleteGroupQuestion": "Delete this group?",
       "removeSharedQuestion": "Remove shared group?",
-      "fileUploaded": "File uploaded"
+      "fileUploaded": "File uploaded",
+      "adminResetButton": "Reset data",
+      "adminResetDone": "Data reset completed"
     }
   },
   "errors": {

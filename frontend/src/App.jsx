@@ -23,7 +23,8 @@ function App() {
   const viewerRef = useRef(null);
   const imgRef = useRef(null);
   const [imgSize, setImgSize] = useState({ width: 'auto', height: 'auto' });
-  const [snackOpen, setSnackOpen] = useState(false);
+  const [snackMsg, setSnackMsg] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [config, setConfig] = useState({ previewSize: 128 });
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState('default');
@@ -73,6 +74,7 @@ function App() {
       .then(res => res.json())
       .then(data => {
         setCsrfToken(data.csrfToken);
+        setIsAdmin(!!data.admin);
         if (data && data.user) setUser(data.user);
       });
   }, []);
@@ -273,7 +275,7 @@ function App() {
     setUploadGroups(['default']);
     loadMyCards();
     loadGroups();
-    setSnackOpen(true);
+    setSnackMsg(t('pages.main.fileUploaded'));
   };
 
   if (!user) {
@@ -320,6 +322,7 @@ function App() {
         <Tab label={t('pages.main.tabs.upload')} />
         <Tab label={t('pages.main.tabs.groups')} />
         <Tab label={t('pages.main.tabs.shared')} />
+        {isAdmin && <Tab label={t('pages.main.tabs.admin')} />}
       </Tabs>
       <Box sx={{ p:2 }} hidden={tab!==0}>
         <FormControl sx={{ mb:2, minWidth:200 }}>
@@ -528,6 +531,16 @@ function App() {
           </Box>
         ))}
       </Box>
+      {isAdmin && (
+        <Box sx={{ p:2 }} hidden={tab!==4}>
+          <Button variant="contained" color="error" onClick={async () => {
+            if(!window.confirm('Reset data?')) return;
+            const res = await fetchWithCsrf(`${API_URL}/admin/reset`, { method: 'POST' });
+            if(res.ok) setSnackMsg(t('pages.main.adminResetDone'));
+            else showError(t('errors.internalError'));
+          }}>{t('pages.main.adminResetButton')}</Button>
+        </Box>
+      )}
       <Dialog open={!!shareGroup} onClose={()=>setShareGroup(null)}>
         <DialogContent>
           <Typography variant="h6" sx={{ mb:2 }}>{t('pages.main.shareTitle')} {shareGroup?.name}</Typography>
@@ -687,8 +700,8 @@ function App() {
           </Box>
         </DialogContent>
       </Dialog>
-      <Snackbar open={snackOpen} autoHideDuration={3000} onClose={() => setSnackOpen(false)}>
-        <Alert severity="success" onClose={() => setSnackOpen(false)}>{t('pages.main.fileUploaded')}</Alert>
+      <Snackbar open={!!snackMsg} autoHideDuration={3000} onClose={() => setSnackMsg('')}>
+        <Alert severity="success" onClose={() => setSnackMsg('')}>{snackMsg}</Alert>
       </Snackbar>
       <Snackbar open={!!errorMsg} autoHideDuration={4000} onClose={()=>setErrorMsg('')}>
         <Alert severity="error" onClose={()=>setErrorMsg('')}>{errorMsg}</Alert>

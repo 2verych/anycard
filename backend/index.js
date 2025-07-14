@@ -512,7 +512,9 @@ app.get('/config', (req, res) => {
 
 app.get('/me', (req, res) => {
   const user = req.isAuthenticated() ? req.user : null;
-  res.json({ user, csrfToken: req.csrfToken() });
+  const email = user?.emails?.[0]?.value;
+  const admin = email ? ADMIN_EMAILS.includes(email) : false;
+  res.json({ user, csrfToken: req.csrfToken(), admin });
 });
 
 // Generic error handler to prevent uncaught OAuth errors from crashing the app

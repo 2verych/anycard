@@ -3,12 +3,12 @@
 This repository contains a simple client-server application for storing discount cards.
 
 ## Backend
-Located in the `backend` directory. It is an Express server using Google OAuth for authentication. Uploaded images are stored per-user based on their email address.
+Located in the `backend` directory. It is an Express server using Google OAuth for authentication. Uploaded images are stored per-user using a salted hash of the user's email so the actual address never appears in URLs. Images are served through the `/files` API which validates the requester's access before sending the file.
 
 ### Setup
 ```bash
 cd backend
-cp .env.sample .env        # update with Google credentials
+cp .env.sample .env        # update with Google credentials and set a unique SALT
 npm install
 npm start
 ```

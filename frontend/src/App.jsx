@@ -342,7 +342,7 @@ function App() {
                   <MenuItem key={g.id} value={g.id}>{g.id==='default'?t('defaultGroupName'):g.name} ({g.count})</MenuItem>
                 )),
                 ...Object.entries(shared).flatMap(([owner, arr]) => [
-                  <ListSubheader key={owner}>{owner}</ListSubheader>,
+                  <ListSubheader key={owner}>{arr[0].ownerName}</ListSubheader>,
                   ...arr.map(g => (
                     <MenuItem key={g.id} value={g.id}>{g.name} ({g.count})</MenuItem>
                   ))
@@ -488,7 +488,7 @@ function App() {
           if(!acc[g.owner]) acc[g.owner]=[]; acc[g.owner].push(g); return acc;
         }, {})).map(([owner, arr])=>(
           <Box key={owner} sx={{ mb:2 }}>
-            <Typography sx={{ fontWeight:'bold', mb:1 }}>{owner}</Typography>
+            <Typography sx={{ fontWeight:'bold', mb:1 }}>{arr[0].ownerName}</Typography>
             {arr.map(sg => (
               <Box key={`${sg.owner}_${sg.id}`} sx={{ mb:1 }}>
                 <Box sx={{ display:'flex', alignItems:'center' }}>
@@ -605,7 +605,7 @@ function App() {
                   sx={{ width: imgSize.width, height: imgSize.height, m:0, p:0 }}
                 />
               </Box>
-              {!fullView && dialogCard.owner === user.emails?.[0]?.value && (
+              {!fullView && dialogCard.owner === user.hash && (
                 <>
                   <Stack direction="row" spacing={1} sx={{ mt:2, flexWrap:'wrap', justifyContent:'center' }}>
                     {groups.map(g=>(

@@ -36,7 +36,8 @@
       "removeSharedQuestion": "Удалить общую группу?",
       "fileUploaded": "Файл загружен",
       "adminResetButton": "Сбросить данные",
-      "adminResetDone": "Данные сброшены"
+      "adminResetDone": "Данные сброшены",
+      "telegramRequired": "Доступ только для участников группы в Telegram"
     }
   },
   "errors": {

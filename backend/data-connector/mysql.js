@@ -97,6 +97,11 @@ function ensureTables() {
     name VARCHAR(255),
     email VARCHAR(255)
   )`);
+
+  connection.query(`CREATE TABLE IF NOT EXISTS telegram_users (
+    email VARCHAR(255) PRIMARY KEY,
+    telegram_id VARCHAR(255)
+  )`);
 }
 
 function reset() {
@@ -104,7 +109,7 @@ function reset() {
   connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``);
   connection.query(`USE \`${config.database}\``);
   connection.query(
-    'DROP TABLE IF EXISTS file_groups, files, groups, group_emails, shared_state_hidden, shared_state_show, rejections, usage_stats, shared_users, user_info'
+    'DROP TABLE IF EXISTS file_groups, files, groups, group_emails, shared_state_hidden, shared_state_show, rejections, usage_stats, shared_users, user_info, telegram_users'
   );
   ensureTables();
 }
@@ -333,6 +338,32 @@ function saveUserInfo(data) {
   });
 }
 
+function loadTelegramMap() {
+  connect();
+  const rows = connection.query('SELECT email, telegram_id FROM telegram_users');
+  const result = {};
+  rows.forEach(r => { result[r.email] = r.telegram_id; });
+  return result;
+}
+
+function saveTelegramMap(data) {
+  connect();
+  Object.keys(data).forEach(email => {
+    connection.query(
+      'INSERT INTO telegram_users(email, telegram_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE telegram_id=VALUES(telegram_id)',
+      [email, data[email]]
+    );
+  });
+}
+
+function addTelegramMapping(email, telegramId) {
+  connect();
+  connection.query(
+    'INSERT INTO telegram_users(email, telegram_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE telegram_id=VALUES(telegram_id)',
+    [email, telegramId]
+  );
+}
+
 module.exports = {
   getUploadsDir,
   getUserDir,
@@ -351,6 +382,9 @@ module.exports = {
   allUserDirs,
   loadSharedUsers,
   saveSharedUsers,
+  loadTelegramMap,
+  saveTelegramMap,
+  addTelegramMapping,
   loadUserInfo,
   saveUserInfo,
   saveFile,

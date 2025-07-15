@@ -36,7 +36,8 @@
       "removeSharedQuestion": "Remove shared group?",
       "fileUploaded": "File uploaded",
       "adminResetButton": "Reset data",
-      "adminResetDone": "Data reset completed"
+      "adminResetDone": "Data reset completed",
+      "telegramRequired": "Access restricted to members of our Telegram group"
     }
   },
   "errors": {

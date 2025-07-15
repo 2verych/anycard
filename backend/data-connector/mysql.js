@@ -21,13 +21,22 @@ function connect() {
     });
     connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``);
     connection.query(`USE \`${config.database}\``);
-    ensureTables();
   }
 }
 
 function ensureTables() {
-  // files and groups
+  // user information
+  connection.query(`CREATE TABLE IF NOT EXISTS user_info (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    owner VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
+    PRIMARY KEY(id)
+  )`);
+
+  // card files
   connection.query(`CREATE TABLE IF NOT EXISTS files (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     owner VARCHAR(255) NOT NULL,
     filename VARCHAR(255) NOT NULL,
     data LONGBLOB,
@@ -36,74 +45,108 @@ function ensureTables() {
     original_name VARCHAR(255),
     size INT,
     email VARCHAR(255),
-    PRIMARY KEY(owner, filename)
-  )`);
-
-  connection.query(`CREATE TABLE IF NOT EXISTS file_groups (
-    owner VARCHAR(255) NOT NULL,
-    filename VARCHAR(255) NOT NULL,
-    group_id VARCHAR(255) NOT NULL,
-    PRIMARY KEY(owner, filename, group_id)
+    PRIMARY KEY(id),
+    UNIQUE KEY uniq_owner_filename (owner, filename),
+    INDEX idx_owner (owner),
+    CONSTRAINT fk_files_owner FOREIGN KEY (owner) REFERENCES user_info(owner) ON DELETE CASCADE
   )`);
 
   connection.query(`CREATE TABLE IF NOT EXISTS groups (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     owner VARCHAR(255) NOT NULL,
-    id VARCHAR(255) NOT NULL,
+    group_id VARCHAR(255) NOT NULL,
     name VARCHAR(255),
-    PRIMARY KEY(owner, id)
+    PRIMARY KEY(id),
+    UNIQUE KEY uniq_owner_group (owner, group_id),
+    CONSTRAINT fk_groups_owner FOREIGN KEY (owner) REFERENCES user_info(owner) ON DELETE CASCADE
+  )`);
+
+  connection.query(`CREATE TABLE IF NOT EXISTS file_groups (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    owner VARCHAR(255) NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    group_id VARCHAR(255) NOT NULL,
+    PRIMARY KEY(id),
+    UNIQUE KEY uniq_file_group (owner, filename, group_id),
+    INDEX idx_owner_filename (owner, filename),
+    CONSTRAINT fk_file_groups_file FOREIGN KEY (owner, filename)
+      REFERENCES files(owner, filename) ON DELETE CASCADE,
+    CONSTRAINT fk_file_groups_group FOREIGN KEY (owner, group_id)
+      REFERENCES groups(owner, group_id) ON DELETE CASCADE
   )`);
 
   connection.query(`CREATE TABLE IF NOT EXISTS group_emails (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     owner VARCHAR(255) NOT NULL,
     group_id VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
-    PRIMARY KEY(owner, group_id, email)
+    PRIMARY KEY(id),
+    UNIQUE KEY uniq_group_email (owner, group_id, email),
+    INDEX idx_owner_group (owner, group_id),
+    CONSTRAINT fk_group_emails_group FOREIGN KEY (owner, group_id)
+      REFERENCES groups(owner, group_id) ON DELETE CASCADE
   )`);
 
   connection.query(`CREATE TABLE IF NOT EXISTS shared_state_hidden (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     owner VARCHAR(255) NOT NULL,
     keyname VARCHAR(255) NOT NULL,
-    PRIMARY KEY(owner, keyname)
+    PRIMARY KEY(id),
+    UNIQUE KEY uniq_hidden (owner, keyname),
+    INDEX idx_owner_hidden (owner),
+    CONSTRAINT fk_hidden_owner FOREIGN KEY (owner) REFERENCES user_info(owner) ON DELETE CASCADE
   )`);
 
   connection.query(`CREATE TABLE IF NOT EXISTS shared_state_show (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     owner VARCHAR(255) NOT NULL,
     keyname VARCHAR(255) NOT NULL,
-    PRIMARY KEY(owner, keyname)
+    PRIMARY KEY(id),
+    UNIQUE KEY uniq_show (owner, keyname),
+    INDEX idx_owner_show (owner),
+    CONSTRAINT fk_show_owner FOREIGN KEY (owner) REFERENCES user_info(owner) ON DELETE CASCADE
   )`);
 
   connection.query(`CREATE TABLE IF NOT EXISTS rejections (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     owner VARCHAR(255) NOT NULL,
     group_id VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
-    PRIMARY KEY(owner, group_id, email)
+    PRIMARY KEY(id),
+    UNIQUE KEY uniq_rejection (owner, group_id, email),
+    CONSTRAINT fk_rejections_group FOREIGN KEY (owner, group_id)
+      REFERENCES groups(owner, group_id) ON DELETE CASCADE
   )`);
 
   connection.query(`CREATE TABLE IF NOT EXISTS usage_stats (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     owner VARCHAR(255) NOT NULL,
     group_id VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
-    PRIMARY KEY(owner, group_id, email)
+    PRIMARY KEY(id),
+    UNIQUE KEY uniq_usage (owner, group_id, email),
+    CONSTRAINT fk_usage_group FOREIGN KEY (owner, group_id)
+      REFERENCES groups(owner, group_id) ON DELETE CASCADE
   )`);
 
   connection.query(`CREATE TABLE IF NOT EXISTS shared_users (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     email VARCHAR(255) NOT NULL,
     owner VARCHAR(255) NOT NULL,
-    PRIMARY KEY(email, owner)
-  )`);
-
-  connection.query(`CREATE TABLE IF NOT EXISTS user_info (
-    owner VARCHAR(255) PRIMARY KEY,
-    name VARCHAR(255),
-    email VARCHAR(255)
+    PRIMARY KEY(id),
+    UNIQUE KEY uniq_shared_users (email, owner),
+    CONSTRAINT fk_shared_users_owner FOREIGN KEY (owner) REFERENCES user_info(owner) ON DELETE CASCADE
   )`);
 
   connection.query(`CREATE TABLE IF NOT EXISTS telegram_users (
-    email VARCHAR(255) PRIMARY KEY,
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    email VARCHAR(255) NOT NULL UNIQUE,
     telegram_id VARCHAR(255) UNIQUE,
     username VARCHAR(255),
     first_name VARCHAR(255),
-    last_name VARCHAR(255)
+    last_name VARCHAR(255),
+    PRIMARY KEY(id),
+    CONSTRAINT fk_telegram_email FOREIGN KEY (email) REFERENCES user_info(email) ON DELETE CASCADE
   )`);
 }
 
@@ -111,9 +154,11 @@ function reset() {
   connect();
   connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``);
   connection.query(`USE \`${config.database}\``);
+  connection.query('SET FOREIGN_KEY_CHECKS=0');
   connection.query(
-    'DROP TABLE IF EXISTS file_groups, files, groups, group_emails, shared_state_hidden, shared_state_show, rejections, usage_stats, shared_users, user_info, telegram_users'
+    'DROP TABLE IF EXISTS file_groups, group_emails, rejections, usage_stats, shared_users, files, groups, shared_state_hidden, shared_state_show, telegram_users, user_info'
   );
+  connection.query('SET FOREIGN_KEY_CHECKS=1');
   ensureTables();
 }
 
@@ -129,7 +174,7 @@ function ensureDirs(owner) {
   connect();
   const exist = connection.query('SELECT 1 FROM groups WHERE owner=? LIMIT 1', [owner]);
   if (exist.length === 0) {
-    connection.query('INSERT INTO groups(owner, id, name) VALUES (?, ?, ?)', [owner, 'default', 'My Cards']);
+    connection.query('INSERT INTO groups(owner, group_id, name) VALUES (?, ?, ?)', [owner, 'default', 'My Cards']);
   }
 }
 
@@ -211,9 +256,9 @@ function saveMeta(owner, file, meta) {
 
 function loadGroups(owner) {
   connect();
-  const rows = connection.query('SELECT id, name FROM groups WHERE owner=?', [owner]);
+  const rows = connection.query('SELECT group_id AS id, name FROM groups WHERE owner=?', [owner]);
   if (!rows.length) {
-    connection.query('INSERT INTO groups(owner, id, name) VALUES (?, ?, ?)', [owner, 'default', 'My Cards']);
+    connection.query('INSERT INTO groups(owner, group_id, name) VALUES (?, ?, ?)', [owner, 'default', 'My Cards']);
     return [{ id: 'default', name: 'My Cards', emails: [] }];
   }
   return rows.map(r => {
@@ -227,7 +272,7 @@ function saveGroups(owner, groups) {
   connection.query('DELETE FROM groups WHERE owner=?', [owner]);
   connection.query('DELETE FROM group_emails WHERE owner=?', [owner]);
   groups.forEach(g => {
-    connection.query('INSERT INTO groups(owner, id, name) VALUES (?, ?, ?)', [owner, g.id, g.name]);
+    connection.query('INSERT INTO groups(owner, group_id, name) VALUES (?, ?, ?)', [owner, g.id, g.name]);
     (g.emails || []).forEach(email => {
       connection.query('INSERT INTO group_emails(owner, group_id, email) VALUES (?, ?, ?)', [owner, g.id, email]);
     });

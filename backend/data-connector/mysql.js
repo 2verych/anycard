@@ -476,7 +476,7 @@ function addTelegramMapping(email, info) {
       info.username || '',
       info.first_name || '',
       info.last_name || '',
-      new Date(),
+      new Date().toISOString().slice(0, 19).replace('T', ' '),
       null,
     ]
   );
@@ -487,7 +487,11 @@ function updateTelegramStatus(id, active) {
   connect();
   const result = connection.query(
     'UPDATE telegram_users SET active=?, left_at=? WHERE telegram_id=?',
-    [active ? 1 : 0, active ? null : new Date(), id]
+    [
+      active ? 1 : 0,
+      active ? null : new Date().toISOString().slice(0, 19).replace('T', ' '),
+      id,
+    ]
   );
   return result.affectedRows > 0;
 }

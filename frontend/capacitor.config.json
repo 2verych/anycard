@@ -1,0 +1,6 @@
+{
+  "appId": "com.example.anycard",
+  "appName": "Anycard",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

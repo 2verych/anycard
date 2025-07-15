@@ -37,7 +37,7 @@
       "fileUploaded": "Файл загружен",
       "adminResetButton": "Сбросить данные",
       "adminResetDone": "Данные сброшены",
-      "telegramRequired": "Доступ только для участников Telegram-группы {group}"
+      "telegramRequired": "Доступ только для участников группы. Попросите приглашение у @{group}"
     }
   },
   "errors": {

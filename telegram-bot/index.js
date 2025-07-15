@@ -5,6 +5,7 @@ const axios = require('axios');
 const token = process.env.BOT_TOKEN;
 const apiUrl = process.env.BACKEND_URL || 'http://localhost:4000';
 const secret = process.env.TELEGRAM_SECRET || '';
+const groupId = process.env.TELEGRAM_GROUP_ID;
 
 if (!token) {
   console.error('BOT_TOKEN is required');
@@ -16,7 +17,33 @@ const waitEmail = new Set();
 
 bot.on('new_chat_members', (msg) => {
   const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'Если вы хотите получить доступ к сайту — напишите мне /start');
+  (msg.new_chat_members || []).forEach(async (user) => {
+    if (user.id === bot.botInfo.id) return;
+    const name = user.first_name || user.username || 'друг';
+    await bot.sendMessage(chatId, `Друзья, поприветствуем ${name}!`);
+    try {
+      await axios.post(
+        `${apiUrl}/telegram/status`,
+        { telegramId: user.id, active: true },
+        { headers: { 'X-Telegram-Key': secret } }
+      );
+    } catch (err) {
+      console.error('Status update failed', err.response?.data || err.message);
+    }
+  });
+});
+
+bot.on('left_chat_member', async (msg) => {
+  const user = msg.left_chat_member;
+  try {
+    await axios.post(
+      `${apiUrl}/telegram/status`,
+      { telegramId: user.id, active: false },
+      { headers: { 'X-Telegram-Key': secret } }
+    );
+  } catch (err) {
+    console.error('Status update failed', err.response?.data || err.message);
+  }
 });
 
 bot.onText(/\/start/, async (msg) => {
@@ -64,6 +91,14 @@ bot.on('message', async (msg) => {
     );
     console.log('Mapping saved for', email);
     await bot.sendMessage(msg.chat.id, 'Спасибо! Теперь вы можете пользоваться сайтом.');
+    if (groupId) {
+      try {
+        const link = await bot.createChatInviteLink(groupId, { member_limit: 1 });
+        await bot.sendMessage(msg.chat.id, `Ссылка для вступления в группу: ${link.invite_link}`);
+      } catch (e) {
+        console.error('Failed to create invite link', e.response?.data || e.message);
+      }
+    }
   } catch (err) {
     console.error('Failed to save mapping', err.response?.data || err.message);
     await bot.sendMessage(msg.chat.id, 'Ошибка при сохранении.');

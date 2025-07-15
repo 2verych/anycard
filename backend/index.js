@@ -564,6 +564,25 @@ app.post('/telegram', (req, res) => {
   }
 });
 
+app.post('/telegram/status', (req, res) => {
+  const { telegramId, active } = req.body || {};
+  const key = req.get('x-telegram-key') || '';
+  if (TELEGRAM_SECRET && key !== TELEGRAM_SECRET) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  if (!telegramId || typeof active !== 'boolean') {
+    return res.status(400).json({ error: 'invalid_input' });
+  }
+  try {
+    const ok = dataService.updateTelegramStatus(telegramId, active);
+    if (!ok) return res.status(404).json({ error: 'not_found' });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Telegram status update failed:', e);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 app.get('/telegram/:id', (req, res) => {
   const key = req.get('x-telegram-key') || '';
   if (TELEGRAM_SECRET && key !== TELEGRAM_SECRET) {

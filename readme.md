@@ -13,7 +13,7 @@ npm install
 npm start
 ```
 `ADMIN_EMAILS` in `.env` should contain a comma-separated list of emails allowed to access admin APIs.
-`TELEGRAM_GROUP` sets the Telegram group name used for access checks and links.
+`TELEGRAM_GROUP` should contain the Telegram bot username used to issue group invites.
 
 ## Frontend
 Located in the `frontend` directory. Built with React and Material UI using Vite.
@@ -40,7 +40,7 @@ in the group and stores an email to Telegram ID mapping via the backend API.
 ### Setup
 ```bash
 cd telegram-bot
-cp .env.sample .env  # configure BOT_TOKEN, BACKEND_URL and TELEGRAM_SECRET
+cp .env.sample .env  # configure BOT_TOKEN, BACKEND_URL, TELEGRAM_SECRET and TELEGRAM_GROUP_ID
 npm install
 npm start
 ```

@@ -127,10 +127,12 @@ function saveTelegramMap(data) {
 
 function findTelegramById(id) {
   const map = loadTelegramMap();
-  return (
-    Object.entries(map).find(([, info]) => String(info.id) === String(id)) ||
-    null
-  );
+  for (const [email, info] of Object.entries(map)) {
+    if (String(info.id) === String(id)) {
+      return { email, ...info };
+    }
+  }
+  return null;
 }
 
 function addTelegramMapping(email, info) {
@@ -143,9 +145,26 @@ function addTelegramMapping(email, info) {
     username: info.username || '',
     first_name: info.first_name || '',
     last_name: info.last_name || '',
+    registeredAt: new Date().toISOString(),
+    leftAt: null,
+    active: true,
   };
   saveTelegramMap(map);
   return true;
+}
+
+function updateTelegramStatus(id, active) {
+  const map = loadTelegramMap();
+  for (const email of Object.keys(map)) {
+    const info = map[email];
+    if (String(info.id) === String(id)) {
+      info.active = active;
+      info.leftAt = active ? null : new Date().toISOString();
+      saveTelegramMap(map);
+      return true;
+    }
+  }
+  return false;
 }
 
 function userInfoPath() {
@@ -225,6 +244,7 @@ module.exports = {
   saveTelegramMap,
   findTelegramById,
   addTelegramMapping,
+  updateTelegramStatus,
   loadUserInfo,
   saveUserInfo,
   saveFile,

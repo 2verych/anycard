@@ -39,7 +39,7 @@ in the group and stores an email to Telegram ID mapping via the backend API.
 ### Setup
 ```bash
 cd telegram-bot
-cp .env.sample .env  # configure BOT_TOKEN and BACKEND_URL
+cp .env.sample .env  # configure BOT_TOKEN, BACKEND_URL and TELEGRAM_SECRET
 npm install
 npm start
 ```

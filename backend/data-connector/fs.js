@@ -127,7 +127,7 @@ function saveTelegramMap(data) {
 
 function addTelegramMapping(email, telegramId) {
   const map = loadTelegramMap();
-  map[email] = telegramId;
+  map[email.toLowerCase()] = telegramId;
   saveTelegramMap(map);
 }
 

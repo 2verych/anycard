@@ -4,6 +4,7 @@ const axios = require('axios');
 
 const token = process.env.BOT_TOKEN;
 const apiUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+const secret = process.env.TELEGRAM_SECRET || '';
 
 if (!token) {
   console.error('BOT_TOKEN is required');
@@ -32,7 +33,11 @@ bot.on('message', async (msg) => {
   const email = msg.text.trim();
   console.log('Received email', email, 'from', msg.from.id);
   try {
-    await axios.post(`${apiUrl}/telegram`, { email, telegramId: msg.from.id });
+    await axios.post(
+      `${apiUrl}/telegram`,
+      { email, telegramId: msg.from.id },
+      { headers: { 'X-Telegram-Key': secret } }
+    );
     console.log('Mapping saved for', email);
     await bot.sendMessage(msg.chat.id, 'Спасибо! Теперь вы можете пользоваться сайтом.');
   } catch (err) {

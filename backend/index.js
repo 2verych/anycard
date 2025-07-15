@@ -48,6 +48,7 @@ const MAX_SHARE_EMAILS = parseInt(process.env.MAX_SHARE_EMAILS) || 10;
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024;
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(e => e);
 const REQUIRE_TELEGRAM = process.env.REQUIRE_TELEGRAM === 'true';
+const TELEGRAM_SECRET = process.env.TELEGRAM_SECRET || '';
 
 console.log('Data connector type:', dataConnector.type);
 if (dataConnector.type === 'mysql') {
@@ -520,8 +521,10 @@ app.get('/config', (req, res) => {
 app.get('/me', (req, res) => {
   const user = req.isAuthenticated() ? req.user : null;
   if (user && REQUIRE_TELEGRAM) {
-    const map = dataService.loadTelegramMap();
-    const email = user.emails[0].value;
+    const rawMap = dataService.loadTelegramMap();
+    const map = {};
+    Object.entries(rawMap).forEach(([e, id]) => { map[e.toLowerCase()] = id; });
+    const email = user.emails[0].value.toLowerCase();
     if (!map[email]) {
       return res.status(403).json({ error: 'telegram_required' });
     }
@@ -534,11 +537,15 @@ app.get('/me', (req, res) => {
 app.post('/telegram', (req, res) => {
   const { email, telegramId } = req.body || {};
   console.log('Received Telegram mapping request', email, telegramId);
+  const key = req.get('x-telegram-key') || '';
+  if (TELEGRAM_SECRET && key !== TELEGRAM_SECRET) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   if (!email || !telegramId) {
     return res.status(400).json({ error: 'invalid_input' });
   }
   try {
-    dataService.addTelegramMapping(email, telegramId);
+    dataService.addTelegramMapping(email.toLowerCase(), telegramId);
     console.log('Telegram mapping saved');
     res.json({ success: true });
   } catch (e) {

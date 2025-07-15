@@ -351,7 +351,7 @@ function saveTelegramMap(data) {
   Object.keys(data).forEach(email => {
     connection.query(
       'INSERT INTO telegram_users(email, telegram_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE telegram_id=VALUES(telegram_id)',
-      [email, data[email]]
+      [email.toLowerCase(), data[email]]
     );
   });
 }
@@ -360,7 +360,7 @@ function addTelegramMapping(email, telegramId) {
   connect();
   connection.query(
     'INSERT INTO telegram_users(email, telegram_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE telegram_id=VALUES(telegram_id)',
-    [email, telegramId]
+    [email.toLowerCase(), telegramId]
   );
 }
 

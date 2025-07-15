@@ -13,6 +13,7 @@ npm install
 npm start
 ```
 `ADMIN_EMAILS` in `.env` should contain a comma-separated list of emails allowed to access admin APIs.
+`TELEGRAM_GROUP` sets the Telegram group name used for access checks and links.
 
 ## Frontend
 Located in the `frontend` directory. Built with React and Material UI using Vite.

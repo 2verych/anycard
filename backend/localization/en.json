@@ -37,7 +37,7 @@
       "fileUploaded": "File uploaded",
       "adminResetButton": "Reset data",
       "adminResetDone": "Data reset completed",
-      "telegramRequired": "Access restricted to members of our Telegram group"
+      "telegramRequired": "Access restricted to members of Telegram group {group}"
     }
   },
   "errors": {

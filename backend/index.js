@@ -49,6 +49,7 @@ const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024;
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(e => e);
 const REQUIRE_TELEGRAM = process.env.REQUIRE_TELEGRAM === 'true';
 const TELEGRAM_SECRET = process.env.TELEGRAM_SECRET || '';
+const TELEGRAM_GROUP = process.env.TELEGRAM_GROUP || '';
 
 console.log('Data connector type:', dataConnector.type);
 if (dataConnector.type === 'mysql') {
@@ -515,7 +516,7 @@ app.get('/localization', (req, res) => {
 });
 
 app.get('/config', (req, res) => {
-  res.json({ previewSize: PREVIEW_SIZE });
+  res.json({ previewSize: PREVIEW_SIZE, telegramGroup: TELEGRAM_GROUP });
 });
 
 app.get('/me', (req, res) => {

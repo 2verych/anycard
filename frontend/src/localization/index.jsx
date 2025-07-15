@@ -27,12 +27,17 @@ export function LocalizationProvider({ children }) {
     localStorage.setItem('lang', lang);
   }, [lang]);
 
-  const t = (path) => {
+  const t = (path, vars) => {
     const parts = path.split('.');
     let val = data[lang];
     for (const p of parts) {
       if (!val) break;
       val = val[p];
+    }
+    if (val && vars) {
+      Object.entries(vars).forEach(([k, v]) => {
+        val = val.replace(`{${k}}`, v);
+      });
     }
     return val ?? path;
   };

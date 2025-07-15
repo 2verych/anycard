@@ -100,8 +100,18 @@ bot.onText(/\/start/, async (msg) => {
 });
 
 bot.on('message', async (msg) => {
+  if (msg.chat.type === 'group' || msg.chat.type === 'supergroup') {
+    console.log('Group message:', JSON.stringify({
+      chatId: msg.chat.id,
+      fromId: msg.from && msg.from.id,
+      username: msg.from && msg.from.username,
+      messageId: msg.message_id,
+      text: msg.text,
+    }, null, 2));
+    return;
+  }
   if (msg.chat.type !== 'private') return;
-  if (!waitEmail.has(msg.from.id) || msg.text.startsWith('/')) return;
+  if (!waitEmail.has(msg.from.id) || (msg.text || '').startsWith('/')) return;
   waitEmail.delete(msg.from.id);
   const email = msg.text.trim();
   console.log('Received email', email, 'from', msg.from.id);

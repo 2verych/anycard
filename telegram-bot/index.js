@@ -17,6 +17,13 @@ if (!token) {
 const bot = new TelegramBot(token, { polling: true });
 const waitEmail = new Set();
 
+bot.getMe().then((me) => {
+  bot.botInfo = me;
+  console.log('Bot username:', me.username, 'ID:', me.id);
+}).catch((err) => {
+  console.error('Failed to get bot info', err.message);
+});
+
 async function sendInvite(chatId) {
   if (!groupId) {
     console.log('Group ID not configured, skipping invite');
@@ -46,7 +53,7 @@ async function sendInvite(chatId) {
 bot.on('new_chat_members', (msg) => {
   const chatId = msg.chat.id;
   (msg.new_chat_members || []).forEach(async (user) => {
-    if (user.id === bot.botInfo.id) return;
+    if (bot.botInfo && user.id === bot.botInfo.id) return;
     const name = user.first_name || user.username || 'друг';
     await bot.sendMessage(chatId, `Друзья, поприветствуем ${name}!`);
     try {

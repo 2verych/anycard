@@ -20,9 +20,10 @@ function connect() {
       port: config.port,
       multipleStatements: true,
     });
-    connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``);
-    connection.query(`USE \`${config.database}\``);
   }
+  // ensure the configured database is selected for each call
+  connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``);
+  connection.query(`USE \`${config.database}\``);
 }
 
 function ensureTables() {

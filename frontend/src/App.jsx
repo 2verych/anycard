@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocalization } from './localization';
-import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, ListSubheader, Avatar, IconButton } from '@mui/material';
+import { AppBar, Toolbar, Button, Tabs, Tab, Box, Typography, Grid, TextField, Dialog, DialogContent, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem, Checkbox, FormGroup, FormControlLabel, Chip, Stack, ListSubheader, Avatar, IconButton, Link } from '@mui/material';
 import { useDrop } from 'react-dnd';
 import { NativeTypes } from 'react-dnd-html5-backend';
 
@@ -25,7 +25,7 @@ function App() {
   const [imgSize, setImgSize] = useState({ width: 'auto', height: 'auto' });
   const [snackMsg, setSnackMsg] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [config, setConfig] = useState({ previewSize: 128 });
+  const [config, setConfig] = useState({ previewSize: 128, telegramGroup: '' });
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState('default');
   const [uploadGroups, setUploadGroups] = useState(['default']);
@@ -68,10 +68,10 @@ function App() {
   }));
 
   useEffect(() => {
-    fetch(`${API_URL}/config`)
-      .then(res => (res.ok ? res.json() : {}))
-      .then(setConfig)
-      .catch(() => setConfig({ previewSize: 128 }));
+      fetch(`${API_URL}/config`)
+        .then(res => (res.ok ? res.json() : {}))
+        .then(setConfig)
+        .catch(() => setConfig({ previewSize: 128, telegramGroup: '' }));
     fetch(`${API_URL}/me`, { credentials: 'include' })
       .then(async res => {
         if (res.ok) return res.json();
@@ -303,7 +303,14 @@ function App() {
   if (telegramRequired) {
     return (
       <Box sx={{ height:'100vh', display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', p:2, textAlign:'center' }}>
-        <Typography variant="h6">{t('pages.main.telegramRequired')}</Typography>
+        <Typography variant="h6" sx={{ mb:1 }}>
+          {t('pages.main.telegramRequired', { group: config.telegramGroup })}
+        </Typography>
+        {config.telegramGroup && (
+          <Link href={`https://t.me/${config.telegramGroup}`} target="_blank" rel="noopener" underline="hover" variant="h6">
+            @{config.telegramGroup}
+          </Link>
+        )}
       </Box>
     );
   }

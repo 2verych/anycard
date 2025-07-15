@@ -21,7 +21,6 @@ function connect() {
     });
     connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``);
     connection.query(`USE \`${config.database}\``);
-    ensureTables();
   }
 }
 

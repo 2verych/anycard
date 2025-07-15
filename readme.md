@@ -31,3 +31,15 @@ Create a `.env` based on `.env.sample` to configure the API URL.
 2. Open the frontend URL in your browser.
 3. Login with Google and upload images of your cards.
 4. View your uploaded cards in the "Your Cards" tab.
+
+## Telegram Bot
+A simple Telegram bot is located in the `telegram-bot` directory. It greets new members
+in the group and stores an email to Telegram ID mapping via the backend API.
+
+### Setup
+```bash
+cd telegram-bot
+cp .env.sample .env  # configure BOT_TOKEN, BACKEND_URL and TELEGRAM_SECRET
+npm install
+npm start
+```

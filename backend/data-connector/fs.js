@@ -113,6 +113,41 @@ function saveSharedUsers(data) {
   fs.writeFileSync(sharedUsersPath(), JSON.stringify(data, null, 2));
 }
 
+function telegramMapPath() {
+  return path.join(__dirname, '..', 'telegram-users.json');
+}
+function loadTelegramMap() {
+  const file = telegramMapPath();
+  if (!fs.existsSync(file)) return {};
+  try { return JSON.parse(fs.readFileSync(file)); } catch { return {}; }
+}
+function saveTelegramMap(data) {
+  fs.writeFileSync(telegramMapPath(), JSON.stringify(data, null, 2));
+}
+
+function findTelegramById(id) {
+  const map = loadTelegramMap();
+  return (
+    Object.entries(map).find(([, info]) => String(info.id) === String(id)) ||
+    null
+  );
+}
+
+function addTelegramMapping(email, info) {
+  const map = loadTelegramMap();
+  // prevent multiple emails per Telegram user
+  const exists = findTelegramById(info.id);
+  if (exists) return false;
+  map[email.toLowerCase()] = {
+    id: String(info.id),
+    username: info.username || '',
+    first_name: info.first_name || '',
+    last_name: info.last_name || '',
+  };
+  saveTelegramMap(map);
+  return true;
+}
+
 function userInfoPath() {
   return path.join(__dirname, '..', 'users.json');
 }
@@ -186,6 +221,10 @@ module.exports = {
   allUserDirs,
   loadSharedUsers,
   saveSharedUsers,
+  loadTelegramMap,
+  saveTelegramMap,
+  findTelegramById,
+  addTelegramMapping,
   loadUserInfo,
   saveUserInfo,
   saveFile,

@@ -24,7 +24,8 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "sharp": "^0.33.2",
-    "sync-mysql": "^3.0.1"
+    "sync-mysql": "^3.0.1",
+    "axios": "^1.6.8"
   },
   "devDependencies": {
     "eslint": "^9.30.1",

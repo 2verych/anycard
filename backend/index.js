@@ -47,6 +47,8 @@ const MAX_GROUPS = parseInt(process.env.MAX_GROUPS) || 10;
 const MAX_SHARE_EMAILS = parseInt(process.env.MAX_SHARE_EMAILS) || 10;
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024;
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(e => e);
+const REQUIRE_TELEGRAM = process.env.REQUIRE_TELEGRAM === 'true';
+const TELEGRAM_SECRET = process.env.TELEGRAM_SECRET || '';
 
 console.log('Data connector type:', dataConnector.type);
 if (dataConnector.type === 'mysql') {
@@ -131,7 +133,13 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(csrf());
+// apply CSRF protection for most routes, but allow the Telegram bot
+// to POST without a CSRF token
+const csrfProtection = csrf();
+app.use((req, res, next) => {
+  if (req.path === '/telegram') return next();
+  return csrfProtection(req, res, next);
+});
 
 passport.serializeUser((user, done) => {
   done(null, user);
@@ -512,9 +520,60 @@ app.get('/config', (req, res) => {
 
 app.get('/me', (req, res) => {
   const user = req.isAuthenticated() ? req.user : null;
+  if (user && REQUIRE_TELEGRAM) {
+    const rawMap = dataService.loadTelegramMap();
+    const allowed = new Set(Object.keys(rawMap).map(e => e.toLowerCase()));
+    const email = user.emails[0].value.toLowerCase();
+    if (!allowed.has(email)) {
+      return res.status(403).json({ error: 'telegram_required' });
+    }
+  }
   const email = user?.emails?.[0]?.value;
   const admin = email ? ADMIN_EMAILS.includes(email) : false;
   res.json({ user, csrfToken: req.csrfToken(), admin });
+});
+
+app.post('/telegram', (req, res) => {
+  const { email, telegramId, username, first_name, last_name } = req.body || {};
+  console.log('Received Telegram mapping request', email, telegramId);
+  const key = req.get('x-telegram-key') || '';
+  if (TELEGRAM_SECRET && key !== TELEGRAM_SECRET) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  if (!email || !telegramId) {
+    return res.status(400).json({ error: 'invalid_input' });
+  }
+  try {
+    const ok = dataService.addTelegramMapping(email.toLowerCase(), {
+      id: telegramId,
+      username,
+      first_name,
+      last_name,
+    });
+    if (!ok) {
+      return res.status(409).json({ error: 'exists' });
+    }
+    console.log('Telegram mapping saved');
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Telegram map save failed:', e);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+app.get('/telegram/:id', (req, res) => {
+  const key = req.get('x-telegram-key') || '';
+  if (TELEGRAM_SECRET && key !== TELEGRAM_SECRET) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const mapping = dataService.findTelegramById(req.params.id);
+    if (!mapping) return res.status(404).json({ error: 'not_found' });
+    res.json(mapping);
+  } catch (e) {
+    console.error('Lookup failed:', e);
+    res.status(500).json({ error: 'internal_error' });
+  }
 });
 
 // Generic error handler to prevent uncaught OAuth errors from crashing the app

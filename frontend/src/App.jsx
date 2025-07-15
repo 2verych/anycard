@@ -34,6 +34,7 @@ function App() {
   const [shareEmails, setShareEmails] = useState([]);
   const [shareInput, setShareInput] = useState('');
   const [sharedGroups, setSharedGroups] = useState([]);
+  const [telegramRequired, setTelegramRequired] = useState(false);
   useEffect(() => {
     console.log('sharedGroups state', sharedGroups);
   }, [sharedGroups]);
@@ -72,7 +73,17 @@ function App() {
       .then(setConfig)
       .catch(() => setConfig({ previewSize: 128 }));
     fetch(`${API_URL}/me`, { credentials: 'include' })
-      .then(res => (res.ok ? res.json() : {}))
+      .then(async res => {
+        if (res.ok) return res.json();
+        if (res.status === 403) {
+          const data = await res.json().catch(() => ({}));
+          if (data.error === 'telegram_required') {
+            setTelegramRequired(true);
+            return {};
+          }
+        }
+        return {};
+      })
       .then(data => {
         setCsrfToken(data.csrfToken || '');
         setIsAdmin(!!data.admin);
@@ -288,6 +299,14 @@ function App() {
     loadGroups();
     setSnackMsg(t('pages.main.fileUploaded'));
   };
+
+  if (telegramRequired) {
+    return (
+      <Box sx={{ height:'100vh', display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', p:2, textAlign:'center' }}>
+        <Typography variant="h6">{t('pages.main.telegramRequired')}</Typography>
+      </Box>
+    );
+  }
 
   if (!user) {
     return (

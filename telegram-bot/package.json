@@ -1,0 +1,13 @@
+{
+  "name": "telegram-bot",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.1.0",
+    "axios": "^1.6.8",
+    "node-telegram-bot-api": "^0.61.0"
+  }
+}

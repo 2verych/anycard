@@ -520,16 +520,18 @@ app.get('/config', (req, res) => {
 
 app.get('/me', (req, res) => {
   const user = req.isAuthenticated() ? req.user : null;
-  if (user && REQUIRE_TELEGRAM) {
+  const email = user?.emails?.[0]?.value;
+  const admin = email ? ADMIN_EMAILS.includes(email) : false;
+
+  if (user && REQUIRE_TELEGRAM && !admin) {
     const rawMap = dataService.loadTelegramMap();
     const allowed = new Set(Object.keys(rawMap).map(e => e.toLowerCase()));
-    const email = user.emails[0].value.toLowerCase();
-    if (!allowed.has(email)) {
+    const emailLower = email.toLowerCase();
+    if (!allowed.has(emailLower)) {
       return res.status(403).json({ error: 'telegram_required' });
     }
   }
-  const email = user?.emails?.[0]?.value;
-  const admin = email ? ADMIN_EMAILS.includes(email) : false;
+
   res.json({ user, csrfToken: req.csrfToken(), admin });
 });
 

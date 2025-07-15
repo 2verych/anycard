@@ -151,6 +151,19 @@ function ensureTables() {
     PRIMARY KEY(id),
     CONSTRAINT fk_telegram_email FOREIGN KEY (email) REFERENCES user_info(email) ON DELETE CASCADE
   )`);
+
+  const cols = connection
+    .query('SHOW COLUMNS FROM telegram_users')
+    .map((r) => r.Field);
+  if (!cols.includes('registered_at')) {
+    connection.query('ALTER TABLE telegram_users ADD COLUMN registered_at DATETIME');
+  }
+  if (!cols.includes('left_at')) {
+    connection.query('ALTER TABLE telegram_users ADD COLUMN left_at DATETIME');
+  }
+  if (!cols.includes('active')) {
+    connection.query('ALTER TABLE telegram_users ADD COLUMN active TINYINT(1) DEFAULT 1');
+  }
 }
 
 function reset() {

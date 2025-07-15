@@ -7,6 +7,7 @@ const token = process.env.BOT_TOKEN;
 const apiUrl = process.env.BACKEND_URL || 'http://localhost:4000';
 const secret = process.env.TELEGRAM_SECRET || '';
 const groupId = process.env.TELEGRAM_GROUP_ID && String(process.env.TELEGRAM_GROUP_ID).trim();
+console.log('Bot started with group ID:', groupId);
 
 if (!token) {
   console.error('BOT_TOKEN is required');
@@ -17,7 +18,11 @@ const bot = new TelegramBot(token, { polling: true });
 const waitEmail = new Set();
 
 async function sendInvite(chatId) {
-  if (!groupId) return;
+  if (!groupId) {
+    console.log('Group ID not configured, skipping invite');
+    return;
+  }
+  console.log('Creating invite link for group', groupId);
   try {
     let link;
     if (bot.createChatInviteLink) {
@@ -30,7 +35,11 @@ async function sendInvite(chatId) {
       await bot.sendMessage(chatId, `Ссылка для вступления в группу: ${link.invite_link}`);
     }
   } catch (e) {
-    console.error('Failed to create invite link', e.response?.data || e.message);
+    console.error(
+      'Failed to create invite link for',
+      groupId,
+      e.response?.data || e.message
+    );
   }
 }
 

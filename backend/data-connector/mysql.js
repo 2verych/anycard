@@ -1,4 +1,5 @@
 const SyncMysql = require('sync-mysql');
+const crypto = require('crypto');
 
 const config = {
   host: process.env.MYSQL_HOST || 'localhost',
@@ -466,6 +467,15 @@ function findTelegramById(id) {
 
 function addTelegramMapping(email, info) {
   connect();
+  // ensure user exists so foreign key constraint doesn't fail
+  const hasUser = connection.query('SELECT owner FROM user_info WHERE email=?', [email.toLowerCase()]);
+  if (!hasUser.length) {
+    const owner = crypto
+      .createHash('sha256')
+      .update((process.env.SALT || '') + email.toLowerCase())
+      .digest('hex');
+    connection.query('INSERT INTO user_info(owner, name, email) VALUES (?, ?, ?)', [owner, '', email.toLowerCase()]);
+  }
   const existing = connection.query('SELECT email FROM telegram_users WHERE telegram_id=?', [info.id]);
   if (existing && existing.length) return false;
   connection.query(

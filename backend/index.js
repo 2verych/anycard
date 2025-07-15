@@ -132,7 +132,13 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(csrf());
+// apply CSRF protection for most routes, but allow the Telegram bot
+// to POST without a CSRF token
+const csrfProtection = csrf();
+app.use((req, res, next) => {
+  if (req.path === '/telegram') return next();
+  return csrfProtection(req, res, next);
+});
 
 passport.serializeUser((user, done) => {
   done(null, user);
@@ -527,11 +533,13 @@ app.get('/me', (req, res) => {
 
 app.post('/telegram', (req, res) => {
   const { email, telegramId } = req.body || {};
+  console.log('Received Telegram mapping request', email, telegramId);
   if (!email || !telegramId) {
     return res.status(400).json({ error: 'invalid_input' });
   }
   try {
     dataService.addTelegramMapping(email, telegramId);
+    console.log('Telegram mapping saved');
     res.json({ success: true });
   } catch (e) {
     console.error('Telegram map save failed:', e);

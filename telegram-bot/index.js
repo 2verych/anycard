@@ -20,6 +20,7 @@ bot.on('new_chat_members', (msg) => {
 
 bot.onText(/\/start/, (msg) => {
   if (msg.chat.type !== 'private') return;
+  console.log('Start command from', msg.from.id);
   bot.sendMessage(msg.chat.id, 'Пожалуйста, отправьте ваш email.');
   waitEmail.add(msg.from.id);
 });
@@ -29,10 +30,13 @@ bot.on('message', async (msg) => {
   if (!waitEmail.has(msg.from.id) || msg.text.startsWith('/')) return;
   waitEmail.delete(msg.from.id);
   const email = msg.text.trim();
+  console.log('Received email', email, 'from', msg.from.id);
   try {
     await axios.post(`${apiUrl}/telegram`, { email, telegramId: msg.from.id });
+    console.log('Mapping saved for', email);
     await bot.sendMessage(msg.chat.id, 'Спасибо! Теперь вы можете пользоваться сайтом.');
   } catch (err) {
+    console.error('Failed to save mapping', err.response?.data || err.message);
     await bot.sendMessage(msg.chat.id, 'Ошибка при сохранении.');
   }
 });

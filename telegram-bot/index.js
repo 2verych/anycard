@@ -19,10 +19,28 @@ bot.on('new_chat_members', (msg) => {
   bot.sendMessage(chatId, 'Если вы хотите получить доступ к сайту — напишите мне /start');
 });
 
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start/, async (msg) => {
   if (msg.chat.type !== 'private') return;
   console.log('Start command from', msg.from.id);
-  bot.sendMessage(msg.chat.id, 'Пожалуйста, отправьте ваш email.');
+  try {
+    const res = await axios.get(`${apiUrl}/telegram/${msg.from.id}`, {
+      headers: { 'X-Telegram-Key': secret },
+    });
+    if (res.data && res.data.email) {
+      await bot.sendMessage(
+        msg.chat.id,
+        'ты можешь добавить только один email, хитрая жопка ;)'
+      );
+      return;
+    }
+  } catch (err) {
+    if (err.response && err.response.status !== 404) {
+      console.error('Lookup failed', err.response.data || err.message);
+      await bot.sendMessage(msg.chat.id, 'Ошибка сервера. Попробуйте позже.');
+      return;
+    }
+  }
+  await bot.sendMessage(msg.chat.id, 'Пожалуйста, отправьте ваш email.');
   waitEmail.add(msg.from.id);
 });
 
@@ -35,7 +53,13 @@ bot.on('message', async (msg) => {
   try {
     await axios.post(
       `${apiUrl}/telegram`,
-      { email, telegramId: msg.from.id },
+      {
+        email,
+        telegramId: msg.from.id,
+        username: msg.from.username,
+        first_name: msg.from.first_name,
+        last_name: msg.from.last_name,
+      },
       { headers: { 'X-Telegram-Key': secret } }
     );
     console.log('Mapping saved for', email);

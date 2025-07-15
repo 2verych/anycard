@@ -125,10 +125,27 @@ function saveTelegramMap(data) {
   fs.writeFileSync(telegramMapPath(), JSON.stringify(data, null, 2));
 }
 
-function addTelegramMapping(email, telegramId) {
+function findTelegramById(id) {
   const map = loadTelegramMap();
-  map[email.toLowerCase()] = telegramId;
+  return (
+    Object.entries(map).find(([, info]) => String(info.id) === String(id)) ||
+    null
+  );
+}
+
+function addTelegramMapping(email, info) {
+  const map = loadTelegramMap();
+  // prevent multiple emails per Telegram user
+  const exists = findTelegramById(info.id);
+  if (exists) return false;
+  map[email.toLowerCase()] = {
+    id: String(info.id),
+    username: info.username || '',
+    first_name: info.first_name || '',
+    last_name: info.last_name || '',
+  };
   saveTelegramMap(map);
+  return true;
 }
 
 function userInfoPath() {
@@ -206,6 +223,7 @@ module.exports = {
   saveSharedUsers,
   loadTelegramMap,
   saveTelegramMap,
+  findTelegramById,
   addTelegramMapping,
   loadUserInfo,
   saveUserInfo,

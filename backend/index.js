@@ -522,10 +522,9 @@ app.get('/me', (req, res) => {
   const user = req.isAuthenticated() ? req.user : null;
   if (user && REQUIRE_TELEGRAM) {
     const rawMap = dataService.loadTelegramMap();
-    const map = {};
-    Object.entries(rawMap).forEach(([e, id]) => { map[e.toLowerCase()] = id; });
+    const allowed = new Set(Object.keys(rawMap).map(e => e.toLowerCase()));
     const email = user.emails[0].value.toLowerCase();
-    if (!map[email]) {
+    if (!allowed.has(email)) {
       return res.status(403).json({ error: 'telegram_required' });
     }
   }
@@ -535,7 +534,7 @@ app.get('/me', (req, res) => {
 });
 
 app.post('/telegram', (req, res) => {
-  const { email, telegramId } = req.body || {};
+  const { email, telegramId, username, first_name, last_name } = req.body || {};
   console.log('Received Telegram mapping request', email, telegramId);
   const key = req.get('x-telegram-key') || '';
   if (TELEGRAM_SECRET && key !== TELEGRAM_SECRET) {
@@ -545,11 +544,34 @@ app.post('/telegram', (req, res) => {
     return res.status(400).json({ error: 'invalid_input' });
   }
   try {
-    dataService.addTelegramMapping(email.toLowerCase(), telegramId);
+    const ok = dataService.addTelegramMapping(email.toLowerCase(), {
+      id: telegramId,
+      username,
+      first_name,
+      last_name,
+    });
+    if (!ok) {
+      return res.status(409).json({ error: 'exists' });
+    }
     console.log('Telegram mapping saved');
     res.json({ success: true });
   } catch (e) {
     console.error('Telegram map save failed:', e);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+app.get('/telegram/:id', (req, res) => {
+  const key = req.get('x-telegram-key') || '';
+  if (TELEGRAM_SECRET && key !== TELEGRAM_SECRET) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const mapping = dataService.findTelegramById(req.params.id);
+    if (!mapping) return res.status(404).json({ error: 'not_found' });
+    res.json(mapping);
+  } catch (e) {
+    console.error('Lookup failed:', e);
     res.status(500).json({ error: 'internal_error' });
   }
 });

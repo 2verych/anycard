@@ -122,6 +122,7 @@ module.exports = {
   saveSharedUsers: dataConnector.saveSharedUsers,
   loadTelegramMap: dataConnector.loadTelegramMap,
   saveTelegramMap: dataConnector.saveTelegramMap,
+  findTelegramById: dataConnector.findTelegramById,
   addTelegramMapping: dataConnector.addTelegramMapping,
   loadUserInfo: dataConnector.loadUserInfo,
   saveUserInfo: dataConnector.saveUserInfo,

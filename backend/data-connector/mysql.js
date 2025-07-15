@@ -100,7 +100,10 @@ function ensureTables() {
 
   connection.query(`CREATE TABLE IF NOT EXISTS telegram_users (
     email VARCHAR(255) PRIMARY KEY,
-    telegram_id VARCHAR(255)
+    telegram_id VARCHAR(255) UNIQUE,
+    username VARCHAR(255),
+    first_name VARCHAR(255),
+    last_name VARCHAR(255)
   )`);
 }
 
@@ -340,28 +343,66 @@ function saveUserInfo(data) {
 
 function loadTelegramMap() {
   connect();
-  const rows = connection.query('SELECT email, telegram_id FROM telegram_users');
+  const rows = connection.query(
+    'SELECT email, telegram_id, username, first_name, last_name FROM telegram_users'
+  );
   const result = {};
-  rows.forEach(r => { result[r.email] = r.telegram_id; });
+  rows.forEach(r => {
+    result[r.email] = {
+      id: String(r.telegram_id),
+      username: r.username || '',
+      first_name: r.first_name || '',
+      last_name: r.last_name || '',
+    };
+  });
   return result;
 }
 
 function saveTelegramMap(data) {
   connect();
   Object.keys(data).forEach(email => {
+    const info = data[email] || {};
     connection.query(
-      'INSERT INTO telegram_users(email, telegram_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE telegram_id=VALUES(telegram_id)',
-      [email.toLowerCase(), data[email]]
+      `INSERT INTO telegram_users(email, telegram_id, username, first_name, last_name)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE telegram_id=VALUES(telegram_id), username=VALUES(username), first_name=VALUES(first_name), last_name=VALUES(last_name)`,
+      [
+        email.toLowerCase(),
+        info.id,
+        info.username || '',
+        info.first_name || '',
+        info.last_name || '',
+      ]
     );
   });
 }
 
-function addTelegramMapping(email, telegramId) {
+function findTelegramById(id) {
   connect();
-  connection.query(
-    'INSERT INTO telegram_users(email, telegram_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE telegram_id=VALUES(telegram_id)',
-    [email.toLowerCase(), telegramId]
+  const rows = connection.query(
+    'SELECT email, telegram_id, username, first_name, last_name FROM telegram_users WHERE telegram_id=?',
+    [id]
   );
+  if (!rows || !rows.length) return null;
+  const r = rows[0];
+  return {
+    email: r.email,
+    id: String(r.telegram_id),
+    username: r.username || '',
+    first_name: r.first_name || '',
+    last_name: r.last_name || '',
+  };
+}
+
+function addTelegramMapping(email, info) {
+  connect();
+  const existing = connection.query('SELECT email FROM telegram_users WHERE telegram_id=?', [info.id]);
+  if (existing && existing.length) return false;
+  connection.query(
+    'INSERT INTO telegram_users(email, telegram_id, username, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
+    [email.toLowerCase(), info.id, info.username || '', info.first_name || '', info.last_name || '']
+  );
+  return true;
 }
 
 module.exports = {
@@ -384,6 +425,7 @@ module.exports = {
   saveSharedUsers,
   loadTelegramMap,
   saveTelegramMap,
+  findTelegramById,
   addTelegramMapping,
   loadUserInfo,
   saveUserInfo,

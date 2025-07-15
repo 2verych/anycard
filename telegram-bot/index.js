@@ -1,11 +1,12 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
 const token = process.env.BOT_TOKEN;
 const apiUrl = process.env.BACKEND_URL || 'http://localhost:4000';
 const secret = process.env.TELEGRAM_SECRET || '';
-const groupId = process.env.TELEGRAM_GROUP_ID;
+const groupId = process.env.TELEGRAM_GROUP_ID && String(process.env.TELEGRAM_GROUP_ID).trim();
 
 if (!token) {
   console.error('BOT_TOKEN is required');
@@ -14,6 +15,24 @@ if (!token) {
 
 const bot = new TelegramBot(token, { polling: true });
 const waitEmail = new Set();
+
+async function sendInvite(chatId) {
+  if (!groupId) return;
+  try {
+    let link;
+    if (bot.createChatInviteLink) {
+      link = await bot.createChatInviteLink(groupId, { member_limit: 1 });
+    } else if (bot.exportChatInviteLink) {
+      const invite = await bot.exportChatInviteLink(groupId);
+      link = { invite_link: invite };
+    }
+    if (link && link.invite_link) {
+      await bot.sendMessage(chatId, `Ссылка для вступления в группу: ${link.invite_link}`);
+    }
+  } catch (e) {
+    console.error('Failed to create invite link', e.response?.data || e.message);
+  }
+}
 
 bot.on('new_chat_members', (msg) => {
   const chatId = msg.chat.id;
@@ -91,14 +110,7 @@ bot.on('message', async (msg) => {
     );
     console.log('Mapping saved for', email);
     await bot.sendMessage(msg.chat.id, 'Спасибо! Теперь вы можете пользоваться сайтом.');
-    if (groupId) {
-      try {
-        const link = await bot.createChatInviteLink(groupId, { member_limit: 1 });
-        await bot.sendMessage(msg.chat.id, `Ссылка для вступления в группу: ${link.invite_link}`);
-      } catch (e) {
-        console.error('Failed to create invite link', e.response?.data || e.message);
-      }
-    }
+    await sendInvite(msg.chat.id);
   } catch (err) {
     console.error('Failed to save mapping', err.response?.data || err.message);
     await bot.sendMessage(msg.chat.id, 'Ошибка при сохранении.');

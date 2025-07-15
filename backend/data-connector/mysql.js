@@ -174,7 +174,7 @@ function ensureDirs(owner) {
   connect();
   const exist = connection.query('SELECT 1 FROM groups WHERE owner=? LIMIT 1', [owner]);
   if (exist.length === 0) {
-    connection.query('INSERT INTO groups(owner, id, name) VALUES (?, ?, ?)', [owner, 'default', 'My Cards']);
+    connection.query('INSERT INTO groups(owner, group_id, name) VALUES (?, ?, ?)', [owner, 'default', 'My Cards']);
   }
 }
 
@@ -256,9 +256,9 @@ function saveMeta(owner, file, meta) {
 
 function loadGroups(owner) {
   connect();
-  const rows = connection.query('SELECT id, name FROM groups WHERE owner=?', [owner]);
+  const rows = connection.query('SELECT group_id AS id, name FROM groups WHERE owner=?', [owner]);
   if (!rows.length) {
-    connection.query('INSERT INTO groups(owner, id, name) VALUES (?, ?, ?)', [owner, 'default', 'My Cards']);
+    connection.query('INSERT INTO groups(owner, group_id, name) VALUES (?, ?, ?)', [owner, 'default', 'My Cards']);
     return [{ id: 'default', name: 'My Cards', emails: [] }];
   }
   return rows.map(r => {
@@ -272,7 +272,7 @@ function saveGroups(owner, groups) {
   connection.query('DELETE FROM groups WHERE owner=?', [owner]);
   connection.query('DELETE FROM group_emails WHERE owner=?', [owner]);
   groups.forEach(g => {
-    connection.query('INSERT INTO groups(owner, id, name) VALUES (?, ?, ?)', [owner, g.id, g.name]);
+    connection.query('INSERT INTO groups(owner, group_id, name) VALUES (?, ?, ?)', [owner, g.id, g.name]);
     (g.emails || []).forEach(email => {
       connection.query('INSERT INTO group_emails(owner, group_id, email) VALUES (?, ?, ?)', [owner, g.id, email]);
     });

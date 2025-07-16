@@ -138,7 +138,7 @@ app.use(passport.session());
 // to POST without a CSRF token
 const csrfProtection = csrf();
 app.use((req, res, next) => {
-  if (req.path === '/telegram') return next();
+  if (req.path === '/telegram' || req.path === '/telegram/status') return next();
   return csrfProtection(req, res, next);
 });
 

@@ -124,6 +124,7 @@ module.exports = {
   saveTelegramMap: dataConnector.saveTelegramMap,
   findTelegramById: dataConnector.findTelegramById,
   addTelegramMapping: dataConnector.addTelegramMapping,
+  updateTelegramStatus: dataConnector.updateTelegramStatus,
   loadUserInfo: dataConnector.loadUserInfo,
   saveUserInfo: dataConnector.saveUserInfo,
   ownerExists: dataConnector.ownerExists,

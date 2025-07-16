@@ -1,4 +1,5 @@
 const SyncMysql = require('sync-mysql');
+const crypto = require('crypto');
 
 const config = {
   host: process.env.MYSQL_HOST || 'localhost',
@@ -19,9 +20,10 @@ function connect() {
       port: config.port,
       multipleStatements: true,
     });
-    connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``);
-    connection.query(`USE \`${config.database}\``);
   }
+  // ensure the configured database is selected for each call
+  connection.query(`CREATE DATABASE IF NOT EXISTS \`${config.database}\``);
+  connection.query(`USE \`${config.database}\``);
 }
 
 function ensureTables() {
@@ -145,9 +147,25 @@ function ensureTables() {
     username VARCHAR(255),
     first_name VARCHAR(255),
     last_name VARCHAR(255),
+    registered_at DATETIME,
+    left_at DATETIME,
+    active TINYINT(1) DEFAULT 1,
     PRIMARY KEY(id),
     CONSTRAINT fk_telegram_email FOREIGN KEY (email) REFERENCES user_info(email) ON DELETE CASCADE
   )`);
+
+  const cols = connection
+    .query('SHOW COLUMNS FROM telegram_users')
+    .map((r) => r.Field);
+  if (!cols.includes('registered_at')) {
+    connection.query('ALTER TABLE telegram_users ADD COLUMN registered_at DATETIME');
+  }
+  if (!cols.includes('left_at')) {
+    connection.query('ALTER TABLE telegram_users ADD COLUMN left_at DATETIME');
+  }
+  if (!cols.includes('active')) {
+    connection.query('ALTER TABLE telegram_users ADD COLUMN active TINYINT(1) DEFAULT 1');
+  }
 }
 
 function reset() {
@@ -379,17 +397,30 @@ function loadUserInfo() {
 
 function saveUserInfo(data) {
   connect();
-  connection.query('DELETE FROM user_info');
+  const existing = new Set(
+    connection.query('SELECT owner FROM user_info').map(r => r.owner)
+  );
+  const incoming = new Set(Object.keys(data));
+
+  existing.forEach(owner => {
+    if (!incoming.has(owner)) {
+      connection.query('DELETE FROM user_info WHERE owner=?', [owner]);
+    }
+  });
+
   Object.keys(data).forEach(owner => {
     const info = data[owner] || {};
-    connection.query('INSERT INTO user_info(owner, name, email) VALUES (?, ?, ?)', [owner, info.name || '', info.email || '']);
+    connection.query(
+      'INSERT INTO user_info(owner, name, email) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email)',
+      [owner, info.name || '', info.email || '']
+    );
   });
 }
 
 function loadTelegramMap() {
   connect();
   const rows = connection.query(
-    'SELECT email, telegram_id, username, first_name, last_name FROM telegram_users'
+    'SELECT email, telegram_id, username, first_name, last_name, registered_at, left_at, active FROM telegram_users'
   );
   const result = {};
   rows.forEach(r => {
@@ -398,6 +429,9 @@ function loadTelegramMap() {
       username: r.username || '',
       first_name: r.first_name || '',
       last_name: r.last_name || '',
+      registeredAt: r.registered_at ? new Date(r.registered_at).toISOString() : null,
+      leftAt: r.left_at ? new Date(r.left_at).toISOString() : null,
+      active: !!r.active,
     };
   });
   return result;
@@ -408,15 +442,18 @@ function saveTelegramMap(data) {
   Object.keys(data).forEach(email => {
     const info = data[email] || {};
     connection.query(
-      `INSERT INTO telegram_users(email, telegram_id, username, first_name, last_name)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE telegram_id=VALUES(telegram_id), username=VALUES(username), first_name=VALUES(first_name), last_name=VALUES(last_name)`,
+      `INSERT INTO telegram_users(email, telegram_id, username, first_name, last_name, registered_at, left_at, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE telegram_id=VALUES(telegram_id), username=VALUES(username), first_name=VALUES(first_name), last_name=VALUES(last_name), registered_at=VALUES(registered_at), left_at=VALUES(left_at), active=VALUES(active)`,
       [
         email.toLowerCase(),
         info.id,
         info.username || '',
         info.first_name || '',
         info.last_name || '',
+        info.registeredAt || null,
+        info.leftAt || null,
+        info.active ? 1 : 0,
       ]
     );
   });
@@ -425,7 +462,7 @@ function saveTelegramMap(data) {
 function findTelegramById(id) {
   connect();
   const rows = connection.query(
-    'SELECT email, telegram_id, username, first_name, last_name FROM telegram_users WHERE telegram_id=?',
+    'SELECT email, telegram_id, username, first_name, last_name, registered_at, left_at, active FROM telegram_users WHERE telegram_id=?',
     [id]
   );
   if (!rows || !rows.length) return null;
@@ -436,18 +473,51 @@ function findTelegramById(id) {
     username: r.username || '',
     first_name: r.first_name || '',
     last_name: r.last_name || '',
+    registeredAt: r.registered_at ? new Date(r.registered_at).toISOString() : null,
+    leftAt: r.left_at ? new Date(r.left_at).toISOString() : null,
+    active: !!r.active,
   };
 }
 
 function addTelegramMapping(email, info) {
   connect();
+  // ensure user exists so foreign key constraint doesn't fail
+  const hasUser = connection.query('SELECT owner FROM user_info WHERE email=?', [email.toLowerCase()]);
+  if (!hasUser.length) {
+    const owner = crypto
+      .createHash('sha256')
+      .update((process.env.SALT || '') + email.toLowerCase())
+      .digest('hex');
+    connection.query('INSERT INTO user_info(owner, name, email) VALUES (?, ?, ?)', [owner, '', email.toLowerCase()]);
+  }
   const existing = connection.query('SELECT email FROM telegram_users WHERE telegram_id=?', [info.id]);
   if (existing && existing.length) return false;
   connection.query(
-    'INSERT INTO telegram_users(email, telegram_id, username, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
-    [email.toLowerCase(), info.id, info.username || '', info.first_name || '', info.last_name || '']
+    'INSERT INTO telegram_users(email, telegram_id, username, first_name, last_name, registered_at, left_at, active) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
+    [
+      email.toLowerCase(),
+      info.id,
+      info.username || '',
+      info.first_name || '',
+      info.last_name || '',
+      new Date().toISOString().slice(0, 19).replace('T', ' '),
+      null,
+    ]
   );
   return true;
+}
+
+function updateTelegramStatus(id, active) {
+  connect();
+  const result = connection.query(
+    'UPDATE telegram_users SET active=?, left_at=? WHERE telegram_id=?',
+    [
+      active ? 1 : 0,
+      active ? null : new Date().toISOString().slice(0, 19).replace('T', ' '),
+      id,
+    ]
+  );
+  return result.affectedRows > 0;
 }
 
 module.exports = {
@@ -472,6 +542,7 @@ module.exports = {
   saveTelegramMap,
   findTelegramById,
   addTelegramMapping,
+  updateTelegramStatus,
   loadUserInfo,
   saveUserInfo,
   saveFile,

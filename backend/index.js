@@ -526,9 +526,8 @@ app.get('/me', (req, res) => {
 
   if (user && REQUIRE_TELEGRAM && !admin) {
     const rawMap = dataService.loadTelegramMap();
-    const allowed = new Set(Object.keys(rawMap).map(e => e.toLowerCase()));
-    const emailLower = email.toLowerCase();
-    if (!allowed.has(emailLower)) {
+    const mapping = rawMap[email.toLowerCase()];
+    if (!mapping || !mapping.active) {
       return res.status(403).json({ error: 'telegram_required' });
     }
   }

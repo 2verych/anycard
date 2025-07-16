@@ -480,7 +480,7 @@ function addTelegramMapping(email, info) {
   const existing = connection.query('SELECT email FROM telegram_users WHERE telegram_id=?', [info.id]);
   if (existing && existing.length) return false;
   connection.query(
-    'INSERT INTO telegram_users(email, telegram_id, username, first_name, last_name, registered_at, left_at, active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
+    'INSERT INTO telegram_users(email, telegram_id, username, first_name, last_name, registered_at, left_at, active) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
     [
       email.toLowerCase(),
       info.id,

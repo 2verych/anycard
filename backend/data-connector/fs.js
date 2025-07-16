@@ -147,7 +147,7 @@ function addTelegramMapping(email, info) {
     last_name: info.last_name || '',
     registeredAt: new Date().toISOString(),
     leftAt: null,
-    active: true,
+    active: false,
   };
   saveTelegramMap(map);
   return true;

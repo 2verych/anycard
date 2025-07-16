@@ -62,6 +62,7 @@ bot.on('new_chat_members', (msg) => {
         { telegramId: user.id, active: true },
         { headers: { 'X-Telegram-Key': secret } }
       );
+      await bot.sendMessage(user.id, 'Спасибо! Теперь вы можете пользоваться сайтом.');
     } catch (err) {
       console.error('Status update failed', err.response?.data || err.message);
     }
@@ -135,7 +136,6 @@ bot.on('message', async (msg) => {
       { headers: { 'X-Telegram-Key': secret } }
     );
     console.log('Mapping saved for', email);
-    await bot.sendMessage(msg.chat.id, 'Спасибо! Теперь вы можете пользоваться сайтом.');
     await sendInvite(msg.chat.id);
   } catch (err) {
     console.error('Failed to save mapping', err.response?.data || err.message);

@@ -397,10 +397,23 @@ function loadUserInfo() {
 
 function saveUserInfo(data) {
   connect();
-  connection.query('DELETE FROM user_info');
+  const existing = new Set(
+    connection.query('SELECT owner FROM user_info').map(r => r.owner)
+  );
+  const incoming = new Set(Object.keys(data));
+
+  existing.forEach(owner => {
+    if (!incoming.has(owner)) {
+      connection.query('DELETE FROM user_info WHERE owner=?', [owner]);
+    }
+  });
+
   Object.keys(data).forEach(owner => {
     const info = data[owner] || {};
-    connection.query('INSERT INTO user_info(owner, name, email) VALUES (?, ?, ?)', [owner, info.name || '', info.email || '']);
+    connection.query(
+      'INSERT INTO user_info(owner, name, email) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), email=VALUES(email)',
+      [owner, info.name || '', info.email || '']
+    );
   });
 }
 

@@ -2,8 +2,8 @@ version: '3.9'
 
 services:
   backend:
-    build: ./backend
+    build: .
     env_file:
-      - ./backend/.env
+      - .env
     ports:
       - "${PORT:-4000}:4000"

@@ -27,16 +27,27 @@ npm run dev
 
 Create a `.env` based on `.env.sample` to configure the API URL.
 
-### Docker (Backend)
+### Docker
 
+#### Backend
 To run the backend in a container, copy the sample environment file and start the stack:
 
 ```bash
-cp backend/.env.sample backend/.env  # update with your credentials
+cd backend
+cp .env.sample .env  # update with your credentials
 docker compose up --build
 ```
 
 The API will be available at `http://localhost:4000` by default. Environment variables are loaded from `backend/.env`.
+
+#### Telegram Bot
+To run the Telegram bot in a container:
+
+```bash
+cd telegram-bot
+cp .env.sample .env  # configure BOT_TOKEN, BACKEND_URL, TELEGRAM_SECRET and TELEGRAM_GROUP_ID
+docker compose up --build
+```
 
 ## Usage
 1. Start the backend and frontend.

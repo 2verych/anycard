@@ -4,4 +4,4 @@ services:
   telegram-bot:
     build: .
     env_file:
-      - .env
+      - ${ENV_FILE:-.env}

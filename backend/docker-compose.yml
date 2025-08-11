@@ -4,6 +4,6 @@ services:
   backend:
     build: .
     env_file:
-      - .env
+      - ${ENV_FILE:-.env}
     ports:
       - "${PORT:-4000}:4000"

@@ -35,10 +35,11 @@ To run the backend in a container, copy the sample environment file and start th
 ```bash
 cd backend
 cp .env.sample .env  # update with your credentials
+# defaults to .env; override with ENV_FILE=.prod.env or similar
 docker compose up --build
 ```
 
-The API will be available at `http://localhost:4000` by default. Environment variables are loaded from `backend/.env`.
+The API will be available at `http://localhost:4000` by default. Environment variables are loaded from `backend/.env` unless overridden with `ENV_FILE`, e.g. `ENV_FILE=.prod.env docker compose up --build`.
 
 #### Telegram Bot
 To run the Telegram bot in a container:
@@ -46,6 +47,7 @@ To run the Telegram bot in a container:
 ```bash
 cd telegram-bot
 cp .env.sample .env  # configure BOT_TOKEN, BACKEND_URL, TELEGRAM_SECRET and TELEGRAM_GROUP_ID
+# defaults to .env; override with ENV_FILE=.prod.env or similar
 docker compose up --build
 ```
 

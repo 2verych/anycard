@@ -41,6 +41,16 @@ docker compose up --build
 
 The API will be available at `http://localhost:4000` by default. Environment variables are loaded from `backend/.env` unless overridden with `ENV_FILE`, e.g. `ENV_FILE=.prod.env docker compose up --build`.
 
+Secrets from `.env` are never copied into the image: `*.env` and `.npmrc` are ignored by Docker. If you rely on private npm packages, pass your `.npmrc` at build time so tokens do not persist in layers:
+
+```bash
+docker compose build --secret npmrc=.npmrc
+```
+
+Runtime secrets like API keys or database credentials should be stored outside the image (e.g. in environment files or a secret manager).
+
+The same approach applies to the Telegram bot image.
+
 #### Telegram Bot
 To run the Telegram bot in a container:
 

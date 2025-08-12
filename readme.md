@@ -29,14 +29,14 @@ Set `VITE_API_URL` in your environment or create a local `.env` based on `.env.s
 ### Docker
 
 #### Backend
-To run the backend in a container, define the required variables in your shell or pass an env file:
+To build and run the backend, point `ENV_FILE` at the desired env file:
 
 ```bash
 cd backend
-docker compose --env-file .env up --build
+ENV_FILE=.env docker compose --env-file $ENV_FILE up --build
 ```
 
-The API will be available at `http://localhost:4000` by default. Environment variables come from your shell or the file provided with `--env-file`.
+Swap `.env` for `.local.env`, `.staging.env`, or `.prod.env` as needed. The chosen file supplies variables at build time and run time but is ignored by Docker so its contents never enter the image. The API will be available at `http://localhost:4000` by default.
 
 Secrets from `.env` are never copied into the image: `*.env` and `.npmrc` are ignored by Docker. If you rely on private npm packages, pass your `.npmrc` at build time so tokens do not persist in layers:
 
@@ -46,31 +46,32 @@ docker compose build --secret npmrc=.npmrc
 
 Runtime secrets like API keys or database credentials should be stored outside the image (e.g. in environment files or a secret manager).
 #### Frontend
-To build and serve the frontend from a container:
+To build and serve the frontend:
 
 ```bash
 cd frontend
-docker compose --env-file .env up --build
+ENV_FILE=.env docker compose --env-file $ENV_FILE up --build
 ```
 
-Set `VITE_API_URL` in the environment file or shell before building. The site will be available at `http://localhost:3000` by default.
+Replace `.env` with whichever configuration you need. `VITE_API_URL` and other values come from that file during the build, and the resulting static site contains no secrets. The site will be available at `http://localhost:3000` by default.
 
 #### Telegram Bot
 To run the Telegram bot in a container:
 
 ```bash
 cd telegram-bot
-docker compose --env-file .env up --build
+ENV_FILE=.env docker compose --env-file $ENV_FILE up --build
 ```
 
-Provide `BOT_TOKEN`, `BACKEND_URL`, `TELEGRAM_SECRET` and `TELEGRAM_GROUP_ID` via environment variables or an env file.
+Provide `BOT_TOKEN`, `BACKEND_URL`, `TELEGRAM_SECRET` and `TELEGRAM_GROUP_ID` in the selected env file.
 
 ## Hosting
 
 Each project has its own `docker-compose.yml`. To deploy, copy the project folder to your server, create an environment file such as `.prod.env`, and run:
 
 ```bash
-docker compose --env-file .prod.env up -d --build
+cd <project>
+ENV_FILE=.prod.env docker compose --env-file $ENV_FILE up -d --build
 ```
 
 Repeat for `backend`, `frontend`, and `telegram-bot`. Keep your environment files out of version control and restrict their permissions on the host. Build images locally or in CI and push them to a registry if desired:
@@ -83,7 +84,7 @@ docker push your-registry/anycard-frontend:latest
 
 Store secrets outside the images using env files, Docker secrets, or a secrets manager, and regularly scan built images to ensure nothing sensitive slipped into the layers.
 
-In GitHub Actions, define all required variables as repository Secrets and expose them as environment variables. No `.env` file is needed in CI.
+In GitHub Actions, define all required variables as repository Secrets and expose them as environment variables. Do not commit or copy any `.env` files in CI; secrets should come only from the Actions secrets store so nothing sensitive gets baked into image layers.
 
 ## Usage
 1. Start the backend and frontend.

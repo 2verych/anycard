@@ -3,24 +3,7 @@ version: '3.9'
 services:
   backend:
     build: .
+    env_file:
+      - ${ENV_FILE:-.env}
     ports:
       - "${PORT:-4000}:4000"
-    environment:
-      - PORT
-      - GOOGLE_CLIENT_ID
-      - GOOGLE_CLIENT_SECRET
-      - FRONTEND_URL
-      - SESSION_SECRET
-      - MAX_FILE_SIZE
-      - SALT
-      - DATA_CONNECTOR
-      - FS_BASE_DIR
-      - MYSQL_HOST
-      - MYSQL_PORT
-      - MYSQL_USER
-      - MYSQL_PASSWORD
-      - MYSQL_DATABASE
-      - ADMIN_EMAILS
-      - REQUIRE_TELEGRAM
-      - TELEGRAM_SECRET
-      - TELEGRAM_GROUP

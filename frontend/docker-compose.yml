@@ -1,0 +1,16 @@
+version: '3.9'
+
+services:
+  frontend:
+    build:
+      context: .
+      secrets:
+        - env
+    env_file:
+      - ${ENV_FILE:-.env}
+    ports:
+      - "${PORT:-3000}:80"
+
+secrets:
+  env:
+    file: ${ENV_FILE:-.env}

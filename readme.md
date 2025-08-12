@@ -48,8 +48,17 @@ docker compose build --secret npmrc=.npmrc
 ```
 
 Runtime secrets like API keys or database credentials should be stored outside the image (e.g. in environment files or a secret manager).
+#### Frontend
+To build and serve the frontend from a container:
 
-The same approach applies to the Telegram bot image.
+```bash
+cd frontend
+cp .env.sample .env  # configure VITE_API_URL
+# defaults to .env; override with ENV_FILE=.prod.env or similar
+docker compose up --build
+```
+
+The React app is compiled with the environment file mounted as a BuildKit secret, so the `.env` contents are not baked into image layers. The site will be available at `http://localhost:3000` by default.
 
 #### Telegram Bot
 To run the Telegram bot in a container:
@@ -60,6 +69,24 @@ cp .env.sample .env  # configure BOT_TOKEN, BACKEND_URL, TELEGRAM_SECRET and TEL
 # defaults to .env; override with ENV_FILE=.prod.env or similar
 docker compose up --build
 ```
+
+## Hosting
+
+Each project has its own `docker-compose.yml`. To deploy, copy the project folder to your server, create an environment file such as `.prod.env`, and run:
+
+```bash
+ENV_FILE=.prod.env docker compose up -d --build
+```
+
+Repeat for `backend`, `frontend`, and `telegram-bot`. Keep your `.env` files out of version control and restrict their permissions on the host. Build images locally or in CI and push them to a registry if desired:
+
+```bash
+docker compose build
+docker tag frontend_frontend:latest your-registry/anycard-frontend:latest
+docker push your-registry/anycard-frontend:latest
+```
+
+Store secrets outside the images using env files, Docker secrets, or a secrets manager, and regularly scan built images to ensure nothing sensitive slipped into the layers.
 
 ## Usage
 1. Start the backend and frontend.

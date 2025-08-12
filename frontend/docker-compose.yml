@@ -4,13 +4,7 @@ services:
   frontend:
     build:
       context: .
-      secrets:
-        - env
-    env_file:
-      - ${ENV_FILE:-.env}
+      args:
+        VITE_API_URL: ${VITE_API_URL}
     ports:
       - "${PORT:-3000}:80"
-
-secrets:
-  env:
-    file: ${ENV_FILE:-.env}

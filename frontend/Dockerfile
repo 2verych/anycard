@@ -9,10 +9,11 @@ COPY package*.json ./
 RUN --mount=type=secret,id=npmrc,target=/root/.npmrc,required=false \
     npm ci --omit=dev
 
-# Copy source and build with env file mounted as secret
+# Copy source and build
 COPY . .
-RUN --mount=type=secret,id=env,target=.env \
-    npm run build
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+RUN npm run build
 
 # Runtime stage: serve static files with nginx
 FROM nginx:alpine

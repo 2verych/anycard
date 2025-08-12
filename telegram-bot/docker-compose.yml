@@ -3,5 +3,8 @@ version: '3.9'
 services:
   telegram-bot:
     build: .
-    env_file:
-      - ${ENV_FILE:-.env}
+    environment:
+      - BOT_TOKEN
+      - BACKEND_URL
+      - TELEGRAM_SECRET
+      - TELEGRAM_GROUP_ID

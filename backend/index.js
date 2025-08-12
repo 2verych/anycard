@@ -1,4 +1,7 @@
-require('dotenv').config();
+const fs = require('fs');
+if (fs.existsSync('.env')) {
+  require('dotenv').config();
+}
 
 const express = require('express');
 const session = require('express-session');
@@ -7,7 +10,6 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const crypto = require('crypto');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
@@ -27,8 +29,6 @@ function getUserEmail(req) {
   return req.user.emails[0].value;
 }
 
-
-require('dotenv').config();
 
 if (!process.env.SESSION_SECRET) {
   console.error('SESSION_SECRET is required');

@@ -86,6 +86,16 @@ Store secrets outside the images using env files, Docker secrets, or a secrets m
 
 In GitHub Actions, define all required variables as repository Secrets and expose them as environment variables. Do not commit or copy any `.env` files in CI; secrets should come only from the Actions secrets store so nothing sensitive gets baked into image layers.
 
+### GitHub Actions
+
+Manual workflows in `.github/workflows` build and publish container images to GitHub Container Registry. Trigger them from the **Actions** tab:
+
+- **Build and Push Backend Image** — builds the `backend` service and pushes `ghcr.io/<owner>/backend`.
+- **Build and Push Frontend Image** — builds the `frontend` service (injecting `VITE_API_URL` from repository secrets) and pushes `ghcr.io/<owner>/frontend`.
+- **Build and Push Telegram Bot Image** — builds the `telegram-bot` service and pushes `ghcr.io/<owner>/telegram-bot`.
+
+Each workflow logs in to GHCR using `GITHUB_TOKEN`. Optional private npm credentials can be supplied via the `NPMRC` secret; it is mounted as a build-time secret so tokens never enter image layers.
+
 ## Usage
 1. Start the backend and frontend.
 2. Open the frontend URL in your browser.

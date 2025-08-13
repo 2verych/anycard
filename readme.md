@@ -8,12 +8,11 @@ Located in the `backend` directory. It is an Express server using Google OAuth f
 ### Setup
 ```bash
 cd backend
-cp .env.sample .env        # update with Google credentials and set a unique SALT
+# optionally copy .env.sample to .env for local development
 npm install
 npm start
 ```
-`ADMIN_EMAILS` in `.env` should contain a comma-separated list of emails allowed to access admin APIs.
-`TELEGRAM_GROUP` should contain the Telegram bot username used to issue group invites.
+`ADMIN_EMAILS` and `TELEGRAM_GROUP` should be provided via environment variables.
 
 ## Frontend
 Located in the `frontend` directory. Built with React and Material UI using Vite.
@@ -25,7 +24,77 @@ npm install
 npm run dev
 ```
 
-Create a `.env` based on `.env.sample` to configure the API URL.
+Set `VITE_API_URL` in your environment or create a local `.env` based on `.env.sample`.
+
+### Docker
+
+#### Backend
+To build and run the backend, point `ENV_FILE` at the desired env file:
+
+```bash
+cd backend
+ENV_FILE=.env docker compose --env-file $ENV_FILE up --build
+```
+
+Swap `.env` for `.local.env`, `.staging.env`, or `.prod.env` as needed. The chosen file supplies variables at build time and run time but is ignored by Docker so its contents never enter the image. The API will be available at `http://localhost:4000` by default.
+
+Secrets from `.env` are never copied into the image: `*.env` and `.npmrc` are ignored by Docker. If you rely on private npm packages, pass your `.npmrc` at build time so tokens do not persist in layers:
+
+```bash
+docker compose build --secret npmrc=.npmrc
+```
+
+Runtime secrets like API keys or database credentials should be stored outside the image (e.g. in environment files or a secret manager).
+#### Frontend
+To build and serve the frontend:
+
+```bash
+cd frontend
+ENV_FILE=.env docker compose --env-file $ENV_FILE up --build
+```
+
+Replace `.env` with whichever configuration you need. `VITE_API_URL` and other values come from that file during the build, and the resulting static site contains no secrets. The site will be available at `http://localhost:3000` by default.
+
+#### Telegram Bot
+To run the Telegram bot in a container:
+
+```bash
+cd telegram-bot
+ENV_FILE=.env docker compose --env-file $ENV_FILE up --build
+```
+
+Provide `BOT_TOKEN`, `BACKEND_URL`, `TELEGRAM_SECRET` and `TELEGRAM_GROUP_ID` in the selected env file.
+
+## Hosting
+
+Each project has its own `docker-compose.yml`. To deploy, copy the project folder to your server, create an environment file such as `.prod.env`, and run:
+
+```bash
+cd <project>
+ENV_FILE=.prod.env docker compose --env-file $ENV_FILE up -d --build
+```
+
+Repeat for `backend`, `frontend`, and `telegram-bot`. Keep your environment files out of version control and restrict their permissions on the host. Build images locally or in CI and push them to a registry if desired:
+
+```bash
+docker compose build
+docker tag frontend_frontend:latest your-registry/anycard-frontend:latest
+docker push your-registry/anycard-frontend:latest
+```
+
+Store secrets outside the images using env files, Docker secrets, or a secrets manager, and regularly scan built images to ensure nothing sensitive slipped into the layers.
+
+In GitHub Actions, define all required variables as repository Secrets and expose them as environment variables. Do not commit or copy any `.env` files in CI; secrets should come only from the Actions secrets store so nothing sensitive gets baked into image layers.
+
+### GitHub Actions
+
+Manual workflows in `.github/workflows` build and publish container images to GitHub Container Registry. Trigger them from the **Actions** tab:
+
+- **Build and Push Backend Image** — builds the `backend` service and pushes `ghcr.io/<owner>/backend`.
+- **Build and Push Frontend Image** — builds the `frontend` service (injecting `VITE_API_URL` from repository secrets) and pushes `ghcr.io/<owner>/frontend`.
+- **Build and Push Telegram Bot Image** — builds the `telegram-bot` service and pushes `ghcr.io/<owner>/telegram-bot`.
+
+Each workflow logs in to GHCR using `GITHUB_TOKEN`. Optional private npm credentials can be supplied via the `NPMRC` secret; it is mounted as a build-time secret so tokens never enter image layers.
 
 ## Usage
 1. Start the backend and frontend.
@@ -40,7 +109,7 @@ in the group and stores an email to Telegram ID mapping via the backend API.
 ### Setup
 ```bash
 cd telegram-bot
-cp .env.sample .env  # configure BOT_TOKEN, BACKEND_URL, TELEGRAM_SECRET and TELEGRAM_GROUP_ID
+# configure BOT_TOKEN, BACKEND_URL, TELEGRAM_SECRET and TELEGRAM_GROUP_ID in your environment
 npm install
 npm start
 ```
